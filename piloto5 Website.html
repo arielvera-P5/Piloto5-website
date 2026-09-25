@@ -1,0 +1,3992 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Piloto 5 — Reporte semanal</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.4.0/exceljs.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+  :root{
+    --bg:#0F141B;
+    --panel:#171F28;
+    --panel-alt:#1E2731;
+    --line:#2A3542;
+    --text:#EAEFF3;
+    --muted:#8B98A6;
+    --amber:#E7A94C;
+    --teal:#4FB6A8;
+    --coral:#E2685C;
+    --violet:#8B93F2;
+    --radius:10px;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    background:var(--bg);
+    color:var(--text);
+    font-family:'Inter',system-ui,sans-serif;
+    -webkit-font-smoothing:antialiased;
+    min-height:100vh;
+  }
+  ::selection{background:var(--amber);color:#0F141B;}
+  a{color:inherit;}
+
+  .shell{
+    display:grid;
+    grid-template-columns:220px 1fr;
+    min-height:100vh;
+  }
+  @media (max-width:820px){
+    .shell{grid-template-columns:1fr;}
+    .rail{
+      position:sticky; top:0; z-index:20;
+      flex-direction:row !important;
+      overflow-x:auto;
+      border-right:none !important;
+      border-bottom:1px solid var(--line);
+    }
+    .rail-head{display:none;}
+    .rail nav{flex-direction:row !important; gap:4px;}
+    .btn-logout-top{top:10px; right:10px; padding:6px 10px; font-size:12.5px; z-index:120;}
+  }
+
+  .rail{
+    background:var(--panel);
+    border-right:1px solid var(--line);
+    display:flex;
+    flex-direction:column;
+    padding:22px 16px;
+    gap:22px;
+  }
+  .rail-head .brand{
+    font-family:'Fraunces',serif;
+    font-size:20px;
+    font-weight:600;
+    letter-spacing:.2px;
+    line-height:1.15;
+  }
+  .rail-head .brand span{color:var(--amber);}
+  .rail-head .week{
+    margin-top:6px;
+    font-size:12.5px;
+    color:var(--muted);
+  }
+  .rail nav{
+    display:flex;
+    flex-direction:column;
+    gap:2px;
+  }
+  .rail button{
+    all:unset;
+    cursor:pointer;
+    padding:10px 12px;
+    border-radius:8px;
+    font-size:14px;
+    color:var(--muted);
+    white-space:nowrap;
+  }
+  .rail button:hover{background:var(--panel-alt); color:var(--text);}
+  .rail button.active{background:var(--panel-alt); color:var(--text); box-shadow:inset 2px 0 0 var(--amber);}
+  .rail-foot{margin-top:0; font-size:11.5px; color:var(--muted); line-height:1.5;}
+  .rail .rail-action-btn{
+    margin-top:auto;
+    text-align:left;
+    color:var(--amber);
+    border-top:1px solid var(--line);
+    padding-top:14px;
+  }
+  .rail .rail-action-btn.rail-action-btn-grouped{
+    margin-top:10px;
+    border-top:none;
+    padding-top:0;
+  }
+  .rail .rail-action-btn.rail-action-btn-danger{
+    color:var(--coral);
+  }
+  .rail nav .rail-action-btn.rail-action-btn-nav{
+    margin-top:14px;
+    padding-top:14px;
+  }
+
+  .login-screen{
+    position:fixed; inset:0;
+    background:var(--bg);
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    z-index:200;
+  }
+  .login-card{
+    background:var(--panel);
+    border:1px solid var(--line);
+    border-radius:14px;
+    padding:32px 30px;
+    max-width:360px;
+    width:90%;
+    box-shadow:0 20px 60px rgba(0,0,0,.5);
+  }
+  .login-brand{font-family:'Fraunces',serif; font-size:20px; font-weight:600; margin-bottom:4px;}
+  .login-brand span{color:var(--amber);}
+  .login-title{font-size:14px; color:var(--muted); font-weight:500; margin:0 0 22px;}
+  .login-submit-btn{width:100%; text-align:center; margin-top:6px; box-sizing:border-box;}
+  .login-error{color:var(--coral); font-size:12.5px; min-height:16px; margin-top:12px;}
+  .login-info{color:var(--teal); font-size:12.5px; min-height:16px; margin-top:8px; text-align:center;}
+  .link-btn{
+    all:unset;
+    cursor:pointer;
+    display:block;
+    text-align:center;
+    color:var(--muted);
+    font-size:12.5px;
+    margin-top:14px;
+    text-decoration:underline dotted;
+    text-underline-offset:3px;
+  }
+  .link-btn:hover{color:var(--text);}
+  .login-setup-warning{
+    background:rgba(226,104,92,.1);
+    border:1px solid rgba(226,104,92,.35);
+    color:var(--coral);
+    font-size:12px;
+    line-height:1.5;
+    padding:10px 12px;
+    border-radius:8px;
+    margin-bottom:18px;
+  }
+
+  .session-bar{
+    display:flex;
+    flex-direction:column;
+    align-items:flex-start;
+    gap:6px;
+    font-size:14px;
+    color:var(--muted);
+    padding-bottom:12px;
+    margin-bottom:4px;
+    border-bottom:1px solid var(--line);
+  }
+  .session-bar .session-email{overflow:hidden; text-overflow:ellipsis; white-space:nowrap; max-width:100%; font-size:14px; font-weight:600; color:var(--text);}
+  .session-bar .session-rol{font-size:12px; color:var(--muted);}
+  .btn-logout{
+    all:unset;
+    cursor:pointer;
+    color:var(--coral);
+    font-size:14px;
+    padding:4px 8px;
+    margin-left:-8px;
+    border-radius:6px;
+    white-space:nowrap;
+  }
+  .btn-logout:hover{background:var(--panel-alt);}
+  .btn-logout-top{
+    position:fixed;
+    top:18px;
+    right:24px;
+    z-index:150;
+    margin-left:0;
+    background:var(--panel);
+    border:1px solid var(--line);
+    padding:8px 14px;
+  }
+  .btn-logout-top:hover{background:var(--panel-alt);}
+
+  .user-modal{
+    position:relative;
+    background:var(--panel);
+    border:1px solid var(--line);
+    border-radius:12px;
+    padding:24px 26px;
+    max-width:360px;
+    width:90%;
+    box-shadow:0 20px 50px rgba(0,0,0,.5);
+  }
+  .user-modal-close{
+    all:unset;
+    position:absolute;
+    top:14px;
+    right:14px;
+    cursor:pointer;
+    color:var(--muted);
+    padding:4px;
+    border-radius:6px;
+    line-height:0;
+  }
+  .user-modal-close:hover{color:var(--text); background:var(--panel-alt);}
+  .user-modal-title{font-family:'Fraunces',serif; font-size:18px; font-weight:600; margin:0 0 18px;}
+  .form-field-modal{display:flex; flex-direction:column; gap:6px; margin-bottom:14px;}
+  .form-field-modal label{font-size:12.5px; color:var(--muted);}
+  .form-field-modal input, .form-field-modal select{
+    background:var(--panel-alt);
+    border:1px solid var(--line);
+    color:var(--text);
+    padding:9px 11px;
+    border-radius:8px;
+    font-size:14px;
+    font-family:inherit;
+    width:100%;
+    box-sizing:border-box;
+  }
+  .form-field-modal input:focus, .form-field-modal select:focus{outline:1px solid var(--amber);}
+  .password-field-wrap{position:relative; display:flex; align-items:center;}
+  .password-field-wrap input{padding-right:38px;}
+  .password-toggle-btn{
+    all:unset;
+    position:absolute;
+    right:10px;
+    top:50%;
+    transform:translateY(-50%);
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    cursor:pointer;
+    color:var(--muted);
+    padding:2px;
+  }
+  .password-toggle-btn:hover{color:var(--text);}
+  .user-modal-actions{display:flex; justify-content:flex-end; gap:10px; margin-top:6px;}
+  .user-modal-status{font-size:12.5px; color:var(--teal); min-height:16px; margin-top:10px;}
+  .user-modal-status.err{color:var(--coral);}
+
+  main{padding:32px 36px 64px; max-width:1180px;}
+  @media (max-width:640px){ main{padding:20px 16px 48px;} }
+
+  .view{display:none;}
+  .view.active{display:block; animation:fade .35s ease;}
+  @keyframes fade{from{opacity:0; transform:translateY(4px);} to{opacity:1; transform:none;}}
+
+  h1.page-title{
+    font-family:'Fraunces',serif;
+    font-weight:600;
+    font-size:26px;
+    margin:0 0 4px;
+  }
+  .page-sub{color:var(--muted); font-size:14px; margin:0 0 28px;}
+
+  .hero{
+    display:grid;
+    grid-template-columns:1.3fr 1fr;
+    gap:28px;
+    align-items:end;
+    padding-bottom:26px;
+    border-bottom:1px solid var(--line);
+    margin-bottom:26px;
+  }
+  @media (max-width:820px){ .hero{grid-template-columns:1fr;} }
+  .hero-figure .label{font-size:13px; color:var(--muted); margin-bottom:6px;}
+  .hero-figure .value{
+    font-family:'Fraunces',serif;
+    font-weight:600;
+    font-size:clamp(38px,6vw,64px);
+    line-height:1;
+    color:var(--amber);
+  }
+  .hero-figure .value small{font-size:.4em; color:var(--muted); font-weight:500; margin-left:6px;}
+  .hero-note{font-size:13px; color:var(--muted); margin-top:10px; max-width:46ch; line-height:1.5;}
+
+  .stat-row{
+    display:grid;
+    grid-template-columns:repeat(3,1fr);
+    gap:14px;
+  }
+  .stat{
+    background:var(--panel);
+    border:1px solid var(--line);
+    border-radius:var(--radius);
+    padding:14px 16px;
+  }
+  .stat .label{font-size:12px; color:var(--muted); margin-bottom:6px;}
+  .stat .value{font-size:19px; font-weight:600;}
+  .stat .value.pos{color:var(--teal);}
+  .stat .value.neg{color:var(--coral);}
+
+  .grid-2{display:grid; grid-template-columns:1.1fr .9fr; gap:20px; margin-bottom:26px;}
+  @media (max-width:900px){ .grid-2{grid-template-columns:1fr;} }
+  .panel{
+    background:var(--panel);
+    border:1px solid var(--line);
+    border-radius:var(--radius);
+    padding:20px 22px;
+  }
+  .panel h3{margin:0 0 14px; font-size:14.5px; font-weight:600; color:var(--text);}
+  .panel canvas{max-height:260px;}
+
+  .funnel{display:flex; flex-direction:column; gap:10px;}
+  .funnel-step{display:grid; grid-template-columns:120px 1fr 56px; align-items:center; gap:10px; font-size:13px;}
+  .funnel-step .name{color:var(--muted);}
+  .funnel-bar-track{background:var(--panel-alt); border-radius:6px; height:14px; overflow:hidden;}
+  .funnel-bar-fill{height:100%; border-radius:6px;}
+  .funnel-step .pct{text-align:right; font-variant-numeric:tabular-nums; color:var(--text);}
+
+  table{width:100%; border-collapse:collapse; font-size:13.5px;}
+  thead th{
+    text-align:left;
+    font-weight:600;
+    color:var(--muted);
+    font-size:12px;
+    border-bottom:1px solid var(--line);
+    padding:8px 10px;
+    white-space:nowrap;
+    cursor:pointer;
+    user-select:none;
+  }
+  thead th:hover{color:var(--text);}
+  thead th.sorted::after{content:" ↕"; opacity:.4; font-size:10px;}
+  tbody td{padding:8px 10px; border-bottom:1px solid var(--line); white-space:nowrap;}
+  tbody tr:hover{background:var(--panel-alt);}
+  td.num, th.num{text-align:right; font-variant-numeric:tabular-nums;}
+  .tag{
+    display:inline-block;
+    padding:2px 8px;
+    border-radius:20px;
+    font-size:11.5px;
+    background:rgba(139,147,242,.15);
+    color:var(--violet);
+  }
+
+  .group-cards{display:grid; grid-template-columns:repeat(2,1fr); gap:16px; margin-bottom:26px;}
+  @media (max-width:820px){ .group-cards{grid-template-columns:1fr;} }
+  .group-card{
+    background:var(--panel);
+    border:1px solid var(--line);
+    border-radius:var(--radius);
+    padding:18px 20px;
+  }
+  .group-card .gtitle{display:flex; align-items:baseline; justify-content:space-between; margin-bottom:14px;}
+  .group-card .gtitle .gname{font-family:'Fraunces',serif; font-size:19px; font-weight:600;}
+  .group-card .gtitle .gcount{font-size:12.5px; color:var(--muted);}
+  .group-metrics{display:grid; grid-template-columns:1fr 1fr; gap:10px 18px; margin-bottom:14px;}
+  .group-metrics .m .label{font-size:11.5px; color:var(--muted);}
+  .group-metrics .m .value{font-size:16px; font-weight:600;}
+  .group-card .gfoot{font-size:12px; color:var(--muted); border-top:1px solid var(--line); padding-top:10px;}
+
+  .subtabs{display:flex; gap:4px; margin-bottom:20px;}
+  .subtab-btn{
+    all:unset;
+    cursor:pointer;
+    padding:8px 14px;
+    border-radius:8px;
+    font-size:13.5px;
+    color:var(--muted);
+  }
+  .subtab-btn:hover{background:var(--panel-alt); color:var(--text);}
+  .subtab-btn.active{background:var(--panel-alt); color:var(--text); box-shadow:inset 0 -2px 0 var(--amber);}
+  .subview{display:none;}
+  .subview.active{display:block;}
+
+  .detalle-subtabs{display:flex; gap:4px; margin:22px 0 16px;}
+  .detalle-subtab-btn{
+    all:unset;
+    cursor:pointer;
+    padding:7px 13px;
+    border-radius:8px;
+    font-size:13px;
+    color:var(--muted);
+  }
+  .detalle-subtab-btn:hover{background:var(--panel-alt); color:var(--text);}
+  .detalle-subtab-btn.active{background:var(--panel-alt); color:var(--text); box-shadow:inset 0 -2px 0 var(--teal);}
+  .detalle-view{display:none;}
+  .detalle-view.active{display:block;}
+
+  .toolbar{display:flex; gap:10px; align-items:center; margin-bottom:16px; flex-wrap:wrap;}
+  .date-filter-wrap{display:flex; align-items:center; gap:8px; flex-wrap:wrap; position:relative;}
+  .date-range-picker{display:none; position:absolute; top:calc(100% + 8px); left:0; z-index:40;}
+  .date-range-picker.active{display:block;}
+  .date-label{flex:1; min-width:160px; font-size:13px; color:var(--muted); text-align:right;}
+
+  .calendar{
+    background:var(--panel);
+    border:1px solid var(--line);
+    border-radius:10px;
+    padding:14px;
+    width:280px;
+    box-shadow:0 12px 30px rgba(0,0,0,.4);
+  }
+  .calendar-header{display:flex; align-items:center; justify-content:space-between; margin-bottom:10px;}
+  .cal-nav{
+    all:unset;
+    cursor:pointer;
+    padding:4px 10px;
+    border-radius:6px;
+    color:var(--text);
+    font-size:15px;
+  }
+  .cal-nav:hover{background:var(--panel-alt);}
+  .cal-month-label{font-size:13.5px; font-weight:600; text-transform:capitalize;}
+  .calendar-weekdays{
+    display:grid;
+    grid-template-columns:repeat(7,1fr);
+    font-size:11px;
+    color:var(--muted);
+    text-align:center;
+    margin-bottom:4px;
+  }
+  .calendar-grid{
+    display:grid;
+    grid-template-columns:repeat(7,1fr);
+    gap:3px;
+  }
+  .cal-day{
+    all:unset;
+    cursor:pointer;
+    text-align:center;
+    font-size:12.5px;
+    padding:7px 0;
+    border-radius:6px;
+    color:var(--text);
+  }
+  .cal-day.empty{cursor:default;}
+  .cal-day:not(.empty):hover{background:var(--panel-alt);}
+  .cal-day.sel-start, .cal-day.sel-end{background:var(--amber); color:#20160A; font-weight:600;}
+  .cal-day.in-range{background:rgba(231,169,76,.18);}
+  .calendar-footer{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    gap:10px;
+    margin-top:12px;
+  }
+  .calendar-range-label{font-size:11.5px; color:var(--muted); flex:1;}
+  select, input[type=search]{
+    background:var(--panel-alt);
+    border:1px solid var(--line);
+    color:var(--text);
+    padding:9px 12px;
+    border-radius:8px;
+    font-size:13.5px;
+    font-family:inherit;
+  }
+  input[type=search]{flex:1; min-width:180px;}
+  select:focus, input:focus{outline:1px solid var(--amber);}
+
+  /* ---------- Menú desplegable de agentes con buscador ---------- */
+  .agent-select-wrap{position:relative; min-width:220px;}
+  .agent-select-native{
+    position:absolute;
+    width:1px; height:1px;
+    padding:0; margin:-1px;
+    overflow:hidden;
+    clip:rect(0,0,0,0);
+    white-space:nowrap;
+    border:0;
+  }
+  .agent-select-btn{
+    width:100%;
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    gap:8px;
+    background:var(--panel-alt);
+    border:1px solid var(--line);
+    color:var(--text);
+    padding:9px 12px;
+    border-radius:8px;
+    font-size:13.5px;
+    font-family:inherit;
+    cursor:pointer;
+    text-align:left;
+  }
+  .agent-select-btn:focus{outline:1px solid var(--amber);}
+  .agent-select-btn[disabled]{cursor:default; opacity:.75;}
+  .agent-select-btn .agent-select-caret{color:var(--muted); font-size:11px; transition:transform .15s ease;}
+  .agent-select-wrap.open .agent-select-btn .agent-select-caret{transform:rotate(180deg);}
+  .agent-select-panel{
+    display:none;
+    position:absolute;
+    top:calc(100% + 6px);
+    left:0;
+    right:0;
+    z-index:40;
+    background:var(--panel);
+    border:1px solid var(--line);
+    border-radius:8px;
+    box-shadow:0 12px 28px rgba(0,0,0,.35);
+    overflow:hidden;
+  }
+  .agent-select-wrap.open .agent-select-panel{display:block;}
+  .agent-select-search-box{padding:8px;border-bottom:1px solid var(--line);}
+  .agent-select-search{
+    width:100%;
+    background:var(--panel-alt);
+    border:1px solid var(--line);
+    color:var(--text);
+    padding:8px 10px;
+    border-radius:6px;
+    font-size:13px;
+    font-family:inherit;
+    box-sizing:border-box;
+  }
+  .agent-select-search:focus{outline:1px solid var(--amber);}
+  .agent-select-list{max-height:240px; overflow-y:auto; padding:4px;}
+  .agent-select-option{
+    display:block;
+    width:100%;
+    text-align:left;
+    background:none;
+    border:none;
+    color:var(--text);
+    padding:8px 10px;
+    border-radius:6px;
+    font-size:13.5px;
+    font-family:inherit;
+    cursor:pointer;
+  }
+  .agent-select-option:hover{background:var(--panel-alt);}
+  .agent-select-option.selected{background:var(--panel-alt); color:var(--teal);}
+  .agent-select-empty{padding:10px; font-size:12.5px; color:var(--muted);}
+
+  .agent-detail{
+    background:var(--panel);
+    border:1px solid var(--line);
+    border-radius:var(--radius);
+    padding:22px 24px;
+    margin-bottom:22px;
+  }
+  .agent-detail .aname{font-family:'Fraunces',serif; font-size:22px; font-weight:600; margin-bottom:2px;}
+  .agent-detail .agroup{color:var(--muted); font-size:13px; margin-bottom:18px;}
+  .agent-metrics{display:grid; grid-template-columns:repeat(4,1fr); gap:14px;}
+  @media (max-width:760px){ .agent-metrics{grid-template-columns:repeat(2,1fr);} }
+  .agent-metrics .m{background:var(--panel-alt); border-radius:8px; padding:12px 14px;}
+  .agent-metrics .m .label{font-size:11.5px; color:var(--muted); margin-bottom:4px;}
+  .agent-metrics .m .value{font-size:17px; font-weight:600;}
+
+  .table-wrap{overflow-x:auto; background:var(--panel); border:1px solid var(--line); border-radius:var(--radius); padding:6px 8px;}
+
+  .foot-note{font-size:12px; color:var(--muted); margin-top:30px; line-height:1.6; border-top:1px solid var(--line); padding-top:16px;}
+
+  .luna-panel{display:flex; flex-direction:column; gap:14px;}
+  .luna-chat{
+    display:flex;
+    flex-direction:column;
+    gap:10px;
+    max-height:420px;
+    min-height:200px;
+    overflow-y:auto;
+    padding-right:4px;
+  }
+  .luna-msg{
+    max-width:80%;
+    padding:10px 14px;
+    border-radius:12px;
+    font-size:14px;
+    line-height:1.5;
+    white-space:pre-wrap;
+  }
+  .luna-msg-usuario{
+    align-self:flex-end;
+    background:var(--amber);
+    color:#20160A;
+    border-bottom-right-radius:2px;
+  }
+  .luna-msg-luna{
+    align-self:flex-start;
+    background:var(--panel-alt);
+    color:var(--text);
+    border:1px solid var(--line);
+    border-bottom-left-radius:2px;
+  }
+  .luna-msg-pendiente{color:var(--muted); font-style:italic;}
+  .luna-input-row{display:flex; gap:10px;}
+  .luna-input-row input{
+    flex:1;
+    background:var(--panel-alt);
+    border:1px solid var(--line);
+    color:var(--text);
+    padding:10px 14px;
+    border-radius:8px;
+    font-size:14px;
+    font-family:inherit;
+  }
+  .luna-input-row input:focus{outline:1px solid var(--amber);}
+
+  .ingreso-list{display:flex; flex-direction:column;}
+  .ingreso-row{
+    display:grid;
+    grid-template-columns:1fr 170px;
+    align-items:center;
+    gap:14px;
+    padding:12px 0;
+    border-bottom:1px solid var(--line);
+  }
+  .ingreso-row label{font-size:14px; color:var(--text);}
+  .ingreso-row input{
+    background:var(--panel-alt);
+    border:1px solid var(--line);
+    color:var(--text);
+    padding:9px 11px;
+    border-radius:8px;
+    font-size:14px;
+    font-family:inherit;
+    font-variant-numeric:tabular-nums;
+    text-align:right;
+  }
+  .ingreso-row input:focus{outline:1px solid var(--amber);}
+  /* Tinte visual temporal: confirma que ese campo ya se guardó en Supabase.
+     Es puramente decorativo — desaparece en cuanto el usuario vuelve a
+     escribir en la casilla — y no afecta el valor real guardado. */
+  .ingreso-row input.ingreso-saved{
+    background:rgba(79,182,168,.16);
+    border-color:var(--teal);
+    color:var(--teal);
+  }
+  .ingreso-row-vso{
+    background:rgba(231,169,76,.08);
+    margin:0 -22px;
+    padding:12px 22px;
+    border-radius:8px;
+  }
+  .ingreso-row-vso label{font-weight:600;}
+  .ingreso-row-orden{grid-template-columns:1fr 170px 90px;}
+  input.no-spin::-webkit-outer-spin-button,
+  input.no-spin::-webkit-inner-spin-button{
+    -webkit-appearance:none;
+    margin:0;
+  }
+  input.no-spin{
+    -moz-appearance:textfield;
+  }
+  .btn-sumar{
+    all:unset;
+    cursor:pointer;
+    background:var(--teal);
+    color:#0F1F1C;
+    font-weight:600;
+    font-size:13px;
+    padding:9px 0;
+    border-radius:8px;
+    text-align:center;
+  }
+  .btn-sumar:hover{filter:brightness(1.08);}
+  .ingreso-readonly{
+    text-align:right;
+    font-weight:600;
+    font-size:16px;
+    color:var(--amber);
+    font-variant-numeric:tabular-nums;
+  }
+  .form-actions{
+    display:flex;
+    align-items:center;
+    gap:14px;
+    margin-top:16px;
+  }
+  .btn-primary{
+    all:unset;
+    cursor:pointer;
+    background:var(--amber);
+    color:#20160A;
+    font-weight:600;
+    font-size:13.5px;
+    padding:10px 18px;
+    border-radius:8px;
+  }
+  .btn-primary:hover{filter:brightness(1.06);}
+  .ingreso-status{font-size:13px; color:var(--teal); min-height:18px;}
+  .ingreso-status.err{color:var(--coral);}
+  .ingreso-empty{color:var(--muted); font-size:13.5px; padding:6px 0;}
+
+  .ord-menu-col{width:36px;}
+  .ord-menu-btn{
+    all:unset;
+    cursor:pointer;
+    padding:4px 8px;
+    border-radius:6px;
+    color:var(--muted);
+    font-size:16px;
+    line-height:1;
+  }
+  .ord-menu-btn:hover{background:var(--panel-alt); color:var(--text);}
+  .ord-menu{
+    position:absolute;
+    z-index:60;
+    background:var(--panel-alt);
+    border:1px solid var(--line);
+    border-radius:8px;
+    padding:4px;
+    min-width:150px;
+    box-shadow:0 8px 24px rgba(0,0,0,.4);
+  }
+  .ord-menu button{
+    all:unset;
+    display:block;
+    width:100%;
+    box-sizing:border-box;
+    cursor:pointer;
+    padding:8px 10px;
+    border-radius:6px;
+    font-size:13px;
+    color:var(--text);
+  }
+  .ord-menu button:hover{background:var(--panel);}
+  .confirm-overlay{
+    position:fixed;
+    inset:0;
+    background:rgba(0,0,0,.55);
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    z-index:100;
+  }
+  .confirm-modal{
+    background:var(--panel);
+    border:1px solid var(--line);
+    border-radius:12px;
+    padding:22px 24px;
+    max-width:320px;
+    width:90%;
+    box-shadow:0 20px 50px rgba(0,0,0,.5);
+  }
+  .confirm-message{margin:0 0 18px; font-size:14px; color:var(--text); line-height:1.5;}
+  .confirm-actions{display:flex; justify-content:flex-end; gap:10px;}
+  .nota-dot{
+    display:inline-block;
+    width:9px;
+    height:9px;
+    border-radius:2px;
+    background:var(--amber);
+    margin-right:6px;
+    vertical-align:middle;
+    cursor:help;
+  }
+  .date-label.editable{cursor:pointer; text-decoration:underline dotted; text-underline-offset:3px;}
+
+  .orden-edit-inline{display:inline-flex; align-items:center; gap:6px;}
+  .orden-edit-input{
+    width:90px;
+    background:var(--panel-alt);
+    border:1px solid var(--line);
+    color:var(--text);
+    padding:6px 8px;
+    border-radius:6px;
+    font-size:13px;
+    font-family:inherit;
+    text-align:right;
+  }
+  .orden-edit-input:focus{outline:1px solid var(--amber);}
+  .btn-icon{
+    all:unset;
+    cursor:pointer;
+    padding:4px 7px;
+    border-radius:6px;
+    font-size:13px;
+    color:var(--text);
+  }
+  .btn-icon:hover{background:var(--panel-alt);}
+  .orden-note-edit-row td{background:var(--panel-alt); padding:10px;}
+  .nota-edit-inline{display:flex; align-items:center; gap:8px; flex-wrap:wrap;}
+  .btn-mini{
+    all:unset;
+    cursor:pointer;
+    background:var(--panel-alt);
+    border:1px solid var(--line);
+    color:var(--text);
+    font-size:12.5px;
+    padding:8px 14px;
+    border-radius:8px;
+    text-align:center;
+  }
+  .btn-mini:hover{background:var(--line);}
+  .btn-mini-danger{color:var(--coral); border-color:rgba(226,104,92,.4);}
+  .btn-mini-danger:hover{background:rgba(226,104,92,.12);}
+  .nota-edit-inline input[type=text]{
+    flex:1;
+    min-width:180px;
+    background:var(--panel);
+    border:1px solid var(--line);
+    color:var(--text);
+    padding:8px 10px;
+    border-radius:8px;
+    font-size:13px;
+    font-family:inherit;
+  }
+  .nota-edit-inline input[type=text]:focus{outline:1px solid var(--amber);}
+</style>
+</head>
+<body>
+
+<div class="login-screen" id="login-screen">
+  <div class="login-card">
+    <div class="login-brand">Piloto <span>5</span></div>
+    <p class="login-title">Inicia sesión para continuar</p>
+    <div class="login-setup-warning" id="login-setup-warning" style="display:none;"></div>
+    <form id="login-form">
+      <div class="form-field-modal">
+        <label for="login-email">Correo</label>
+        <input type="email" id="login-email" autocomplete="username" required>
+      </div>
+      <div class="form-field-modal">
+        <label for="login-password">Contraseña</label>
+        <div class="password-field-wrap">
+          <input type="password" id="login-password" autocomplete="current-password" required>
+          <button type="button" class="password-toggle-btn" id="login-password-toggle" aria-label="Mostrar contraseña">
+            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" id="login-password-eye-open"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8Z"></path><circle cx="12" cy="12" r="3"></circle></svg>
+            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" id="login-password-eye-closed" style="display:none;"><path d="M9.88 9.88a3 3 0 1 0 4.24 4.24"></path><path d="M10.73 5.08A10.43 10.43 0 0 1 12 5c7 0 11 8 11 8a17.83 17.83 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"></path><path d="M6.61 6.61A17.44 17.44 0 0 0 1 12s4 8 11 8a10.4 10.4 0 0 0 5.39-1.61"></path><line x1="2" y1="2" x2="22" y2="22"></line></svg>
+          </button>
+        </div>
+      </div>
+      <button type="submit" class="btn-primary login-submit-btn" id="login-submit">Iniciar sesión</button>
+      <div class="login-error" id="login-error"></div>
+      <div class="login-info" id="login-info"></div>
+    </form>
+    <button type="button" class="link-btn" id="forgot-password-btn">¿Olvidaste tu contraseña?</button>
+  </div>
+</div>
+
+<div class="login-screen" id="reset-password-screen" style="display:none;">
+  <div class="login-card">
+    <div class="login-brand">Piloto <span>5</span></div>
+    <p class="login-title">Crea una nueva contraseña</p>
+    <form id="reset-password-form">
+      <div class="form-field-modal">
+        <label for="reset-password-1">Nueva contraseña</label>
+        <input type="password" id="reset-password-1" autocomplete="new-password" minlength="6" required>
+      </div>
+      <div class="form-field-modal">
+        <label for="reset-password-2">Confirmar contraseña</label>
+        <input type="password" id="reset-password-2" autocomplete="new-password" minlength="6" required>
+      </div>
+      <button type="submit" class="btn-primary login-submit-btn" id="reset-password-submit">Guardar nueva contraseña</button>
+      <div class="login-error" id="reset-password-error"></div>
+    </form>
+  </div>
+</div>
+
+<div class="shell" id="app-shell" style="display:none;">
+  <button type="button" class="btn-logout btn-logout-top" id="logout-btn">Cerrar sesión</button>
+  <aside class="rail">
+    <div class="rail-head">
+      <div class="brand">Piloto <span>5</span></div>
+    </div>
+    <div class="session-bar">
+      <span class="session-email" id="session-email"></span>
+      <span class="session-rol" id="session-rol"></span>
+    </div>
+    <nav>
+      <button class="tab-btn active" data-view="total">General de Piloto 5</button>
+      <button class="tab-btn" data-view="grupos">Por grupo</button>
+      <button class="tab-btn" data-view="individual">Individual</button>
+      <button class="tab-btn" id="nav-luna-btn" data-view="luna">Luna</button>
+      <button type="button" class="rail-action-btn rail-action-btn-nav" id="descargar-reporte-btn">Descargar reporte</button>
+    </nav>
+    <button type="button" class="rail-action-btn" id="crear-usuario-btn">+ Crea nuevo usuario</button>
+    <button type="button" class="rail-action-btn rail-action-btn-grouped" id="editar-usuario-btn">Editar usuario</button>
+    <button type="button" class="rail-action-btn rail-action-btn-grouped rail-action-btn-danger" id="eliminar-usuario-btn">Eliminar usuario</button>
+    <div class="rail-foot">Cifras finales recalculadas desde los datos diarios de cada hoja.</div>
+  </aside>
+
+  <main>
+
+    <!-- ===== VISTA TOTAL ===== -->
+    <section class="view active" id="view-total">
+      <h1 class="page-title">General de Piloto 5</h1>
+      <p class="page-sub">Resultado consolidado de los 4 grupos (CC5A · CC5B · CC5D · CC5E) para la semana.</p>
+
+      <div class="hero">
+        <div class="hero-figure">
+          <div class="label">Ventas totales de la semana</div>
+          <div class="value" id="hero-ventas">$0</div>
+          <div class="hero-note" id="hero-note"></div>
+        </div>
+        <div class="stat-row" id="hero-stats"></div>
+      </div>
+
+      <div class="grid-2">
+        <div class="panel">
+          <h3>Ventas por grupo</h3>
+          <canvas id="chart-ventas-grupo"></canvas>
+        </div>
+        <div class="panel">
+          <h3>Del contacto a la venta</h3>
+          <div class="funnel" id="funnel"></div>
+        </div>
+      </div>
+
+      <div class="panel" style="margin-bottom:26px;">
+        <h3>Miembros activos</h3>
+        <canvas id="chart-miembros" style="max-height:220px;"></canvas>
+      </div>
+
+      <div class="foot-note" id="total-footnote"></div>
+    </section>
+
+    <!-- ===== VISTA GRUPOS ===== -->
+    <section class="view" id="view-grupos">
+      <h1 class="page-title">Resultado por grupo</h1>
+      <p class="page-sub">Cada tarjeta suma las cifras finales de todos los agentes del grupo.</p>
+      <div class="group-cards" id="group-cards"></div>
+    </section>
+
+    <!-- ===== VISTA INDIVIDUAL ===== -->
+    <section class="view" id="view-individual">
+      <h1 class="page-title">Informe individual</h1>
+      <p class="page-sub">Selecciona un agente o búscalo en la tabla para ver su detalle de la semana.</p>
+
+      <div class="subtabs">
+        <button class="subtab-btn active" data-subview="detalle">Detalle</button>
+        <button class="subtab-btn" data-subview="ingreso">Ingreso de datos</button>
+      </div>
+
+      <div class="toolbar">
+        <div class="agent-select-wrap" id="agent-select-wrap">
+          <select id="agent-select" class="agent-select-native" tabindex="-1" aria-hidden="true"></select>
+          <button type="button" class="agent-select-btn" id="agent-select-btn" aria-haspopup="listbox" aria-expanded="false">
+            <span id="agent-select-btn-label">—</span>
+            <span class="agent-select-caret">▾</span>
+          </button>
+          <div class="agent-select-panel" id="agent-select-panel">
+            <div class="agent-select-search-box">
+              <input type="text" class="agent-select-search" id="agent-select-search" placeholder="Buscar agente…" autocomplete="off">
+            </div>
+            <div class="agent-select-list" id="agent-select-list"></div>
+          </div>
+        </div>
+        <div class="date-filter-wrap">
+          <select id="date-filter">
+            <option value="hoy">Hoy</option>
+            <option value="ayer">Ayer</option>
+            <option value="personalizado">Personalizar</option>
+          </select>
+          <div class="date-range-picker" id="date-range-picker">
+            <div class="calendar">
+              <div class="calendar-header">
+                <button type="button" class="cal-nav" id="cal-prev">‹</button>
+                <div class="cal-month-label" id="cal-month-label"></div>
+                <button type="button" class="cal-nav" id="cal-next">›</button>
+              </div>
+              <div class="calendar-weekdays"><span>D</span><span>L</span><span>M</span><span>M</span><span>J</span><span>V</span><span>S</span></div>
+              <div class="calendar-grid" id="calendar-grid"></div>
+              <div class="calendar-footer">
+                <span class="calendar-range-label" id="calendar-range-label"></span>
+                <button type="button" class="btn-sumar" id="date-range-apply">Aplicar</button>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="date-label" id="date-label"></div>
+      </div>
+
+      <div class="subview active" id="subview-detalle">
+        <div class="agent-detail" id="agent-detail"></div>
+
+        <div class="detalle-subtabs">
+          <button class="detalle-subtab-btn active" data-detalle="resumen">Resumen</button>
+          <button class="detalle-subtab-btn" data-detalle="ordenes">Ordenes</button>
+        </div>
+
+        <div class="detalle-view active" id="detalle-resumen">
+          <div class="table-wrap">
+            <table id="resumen-table">
+              <thead id="resumen-table-head"></thead>
+              <tbody id="resumen-table-body"></tbody>
+            </table>
+          </div>
+        </div>
+
+        <div class="detalle-view" id="detalle-ordenes">
+          <div class="table-wrap">
+            <table id="ordenes-table">
+              <thead>
+                <tr>
+                  <th>Fecha</th>
+                  <th class="num">Valor de orden</th>
+                  <th class="ord-menu-col"></th>
+                </tr>
+              </thead>
+              <tbody id="ordenes-table-body"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <div class="subview" id="subview-ingreso">
+        <div class="panel">
+          <h3 id="ingreso-agent-name">Selecciona un agente</h3>
+          <form id="ingreso-form" class="ingreso-list"></form>
+          <div class="ingreso-status" id="ingreso-status"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===== VISTA LUNA ===== -->
+    <section class="view" id="view-luna">
+      <h1 class="page-title">Luna</h1>
+      <p class="page-sub">Pregúntale a Luna sobre el desempeño de Piloto 5. Solo ve los datos que tú tienes permiso de ver.</p>
+
+      <div class="panel luna-panel">
+        <div class="form-field-modal" style="max-width:360px;">
+          <label for="luna-semana-select">Semana sobre la que preguntar</label>
+          <select id="luna-semana-select"></select>
+        </div>
+        <div class="luna-chat" id="luna-chat">
+          <div class="luna-msg luna-msg-luna" id="luna-saludo-inicial">Hola, ¿cómo te ayudo hoy?</div>
+        </div>
+        <form id="luna-form" class="luna-input-row">
+          <input type="text" id="luna-pregunta" placeholder="Escribe tu pregunta…" autocomplete="off">
+          <button type="submit" class="btn-primary" id="luna-enviar">Preguntar</button>
+        </form>
+        <div class="ingreso-status" id="luna-status"></div>
+      </div>
+    </section>
+
+  </main>
+</div>
+
+<script>window.__PILOTO5_DATA__ = {"agentes":{},"grupos":{},"grupos_count":{},"total":{},"reclamos_pendientes":0,"nota_tiempo_disponibilidad":""};</script>
+<script>
+// ======================================================================
+// SUPABASE AUTH — reemplaza estos dos valores por los de tu proyecto
+// (Supabase → Project Settings → API). La "anon key" es pública por
+// diseño (se protege con Row Level Security en el backend); nunca
+// pongas aquí la "service_role key" ni ninguna contraseña.
+// ======================================================================
+const SUPABASE_URL = 'https://uswoeudkfzbnasjxpass.supabase.co';
+const SUPABASE_ANON_KEY = 'sb_publishable_He_5PCZVfvz6fNZQKkjE7A_-rGcHbCF';
+
+let sb = null;
+let supabaseConfigured = false;
+let currentConsultorProfile = null;
+let esSupervisor = false;
+let rosterCargadoParaUserId = null;
+try{
+  if(SUPABASE_URL !== 'TU_SUPABASE_URL' && SUPABASE_ANON_KEY !== 'TU_SUPABASE_ANON_KEY'){
+    sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+    supabaseConfigured = true;
+  }
+}catch(e){
+  supabaseConfigured = false;
+}
+
+function showLoginScreen(){
+  document.getElementById('login-screen').style.display = 'flex';
+  document.getElementById('reset-password-screen').style.display = 'none';
+  document.getElementById('app-shell').style.display = 'none';
+  rosterCargadoParaUserId = null;
+  currentConsultorProfile = null;
+  esSupervisor = false;
+}
+
+function showResetPasswordScreen(){
+  document.getElementById('login-screen').style.display = 'none';
+  document.getElementById('reset-password-screen').style.display = 'flex';
+  document.getElementById('app-shell').style.display = 'none';
+}
+
+function showAppShell(session){
+  document.getElementById('login-screen').style.display = 'none';
+  document.getElementById('reset-password-screen').style.display = 'none';
+  document.getElementById('app-shell').style.display = 'grid';
+  document.getElementById('session-email').textContent = session?.user?.email || '';
+  loadConsultoresRoster(session);
+  setupRealtimeGruposTotal();
+}
+
+// ----------------------------------------------------------------------------
+// Tiempo real: cuando cualquiera guarda/edita/elimina en Individual, se avisa
+// por este canal a TODAS las sesiones abiertas (de cualquier rol) para que
+// vuelvan a calcular y repintar "General de Piloto 5" y "Por grupo" al
+// instante. Se usa "broadcast" (mensajería simple) en vez de
+// "postgres_changes" a propósito: postgres_changes respeta la RLS de cada
+// tabla, así que un Consultor nunca se enteraría de cambios en filas ajenas.
+// Con broadcast, el aviso llega a todos por igual; el dato en sí sigue
+// viniendo de la función "totales_por_equipo" (ya protegida del lado del
+// servidor), nunca de las filas individuales.
+// ----------------------------------------------------------------------------
+let realtimeChannel = null;
+let realtimeChannelSuscrito = false;
+function setupRealtimeGruposTotal(){
+  if(!supabaseConfigured || !sb || realtimeChannelSuscrito) return;
+  realtimeChannelSuscrito = true;
+  realtimeChannel = sb.channel('piloto5-totales-realtime');
+  realtimeChannel.on('broadcast', { event: 'cambio' }, ()=>{
+    recalcGroupsAndTotal().then(()=>{
+      renderTotal();
+      renderGrupos();
+    });
+  });
+  realtimeChannel.subscribe();
+}
+
+function anunciarCambioParaTotales(){
+  if(!realtimeChannel) return;
+  realtimeChannel.send({ type:'broadcast', event:'cambio', payload:{} });
+}
+
+// Supabase-js ya refresca la sesión sola cuando hace falta, incluso dentro
+// de la propia llamada a getSession() — forzar un refreshSession() manual
+// (aunque sea "solo a veces") sigue arriesgando chocar con ese mecanismo
+// interno, porque el token de refresco es de un solo uso. Por eso esta
+// función ya NO llama a refreshSession() en ningún caso: solo pide la
+// sesión actual y confía en que Supabase la mantenga al día.
+async function asegurarSesionFresca(){
+  try{
+    const { data: { session } } = await sb.auth.getSession();
+    return session;
+  }catch(e){
+    return null;
+  }
+}
+
+function setLoginError(msg){
+  document.getElementById('login-error').textContent = msg || '';
+}
+
+// Se fuerza la pantalla de login de una vez, de forma síncrona, apenas carga
+// la página — sin esperar ninguna respuesta de Supabase. Así el estado
+// inicial siempre es "pedir iniciar sesión", pase lo que pase después con
+// la sesión guardada en el navegador.
+showLoginScreen();
+
+document.getElementById('login-password-toggle').addEventListener('click', ()=>{
+  const input = document.getElementById('login-password');
+  const eyeOpen = document.getElementById('login-password-eye-open');
+  const eyeClosed = document.getElementById('login-password-eye-closed');
+  const btn = document.getElementById('login-password-toggle');
+  const showing = input.type === 'text';
+  input.type = showing ? 'password' : 'text';
+  eyeOpen.style.display = showing ? '' : 'none';
+  eyeClosed.style.display = showing ? 'none' : '';
+  btn.setAttribute('aria-label', showing ? 'Mostrar contraseña' : 'Ocultar contraseña');
+});
+
+const isRecoveryLink = window.location.hash.includes('type=recovery');
+
+if(!supabaseConfigured){
+  const warn = document.getElementById('login-setup-warning');
+  warn.style.display = 'block';
+  warn.textContent = 'Falta configurar Supabase: reemplaza SUPABASE_URL y SUPABASE_ANON_KEY en el código con los datos de tu proyecto.';
+  document.getElementById('login-submit').disabled = true;
+} else {
+  document.getElementById('login-form').addEventListener('submit', async (e)=>{
+    e.preventDefault();
+    setLoginError('');
+    document.getElementById('login-info').textContent = '';
+    const email = document.getElementById('login-email').value.trim();
+    const password = document.getElementById('login-password').value;
+    const btn = document.getElementById('login-submit');
+    btn.disabled = true;
+    btn.textContent = 'Ingresando…';
+    const { data, error } = await sb.auth.signInWithPassword({ email, password });
+    btn.disabled = false;
+    btn.textContent = 'Iniciar sesión';
+    if(error){
+      setLoginError('Correo o contraseña incorrectos.');
+      return;
+    }
+    document.getElementById('login-password').value = '';
+    // Se navega a la app SOLO aquí, como resultado directo de enviar el
+    // formulario con éxito — nunca por un evento automático de Supabase
+    // (restaurar sesión guardada, refrescar token, etc.).
+    if(data?.session){
+      showAppShell(data.session);
+    }
+  });
+
+  document.getElementById('forgot-password-btn').addEventListener('click', async ()=>{
+    setLoginError('');
+    const infoEl = document.getElementById('login-info');
+    infoEl.textContent = '';
+    const email = document.getElementById('login-email').value.trim();
+    if(!email){
+      setLoginError('Escribe tu correo arriba para poder enviarte el enlace.');
+      return;
+    }
+    const btn = document.getElementById('forgot-password-btn');
+    btn.disabled = true;
+    const redirectTo = window.location.origin + window.location.pathname;
+    const { error } = await sb.auth.resetPasswordForEmail(email, { redirectTo });
+    btn.disabled = false;
+    if(error){
+      setLoginError('No se pudo enviar el correo. Intenta de nuevo.');
+      return;
+    }
+    infoEl.textContent = 'Te enviamos un correo con un enlace para restablecer tu contraseña.';
+  });
+
+  document.getElementById('reset-password-form').addEventListener('submit', async (e)=>{
+    e.preventDefault();
+    const errEl = document.getElementById('reset-password-error');
+    errEl.textContent = '';
+    const p1 = document.getElementById('reset-password-1').value;
+    const p2 = document.getElementById('reset-password-2').value;
+    if(p1.length < 6){
+      errEl.textContent = 'La contraseña debe tener al menos 6 caracteres.';
+      return;
+    }
+    if(p1 !== p2){
+      errEl.textContent = 'Las contraseñas no coinciden.';
+      return;
+    }
+    const btn = document.getElementById('reset-password-submit');
+    btn.disabled = true;
+    btn.textContent = 'Guardando…';
+    const { error } = await sb.auth.updateUser({ password: p1 });
+    btn.disabled = false;
+    btn.textContent = 'Guardar nueva contraseña';
+    if(error){
+      errEl.textContent = 'No se pudo actualizar la contraseña. Intenta de nuevo.';
+      return;
+    }
+    await sb.auth.signOut();
+    document.getElementById('reset-password-form').reset();
+    showLoginScreen();
+    document.getElementById('login-info').textContent = 'Contraseña actualizada. Inicia sesión con tu nueva contraseña.';
+  });
+
+  document.getElementById('logout-btn').addEventListener('click', async ()=>{
+    await sb.auth.signOut();
+  });
+
+  // IMPORTANTE: este listener NUNCA navega automáticamente hacia la app.
+  // Solo reacciona a: (1) un enlace de recuperación de contraseña, o
+  // (2) un cierre de sesión (para regresar a login). Cualquier otro evento
+  // —restaurar una sesión guardada al abrir el archivo, refrescar el token,
+  // etc.— se ignora a propósito. La única puerta de entrada a la app es el
+  // envío exitoso del formulario de login, manejado arriba.
+  sb.auth.onAuthStateChange((_event, session)=>{
+    if(_event === 'PASSWORD_RECOVERY'){
+      showResetPasswordScreen();
+      return;
+    }
+    if(_event === 'SIGNED_OUT' || !session){
+      showLoginScreen();
+    }
+  });
+}
+
+const DATA = window.__PILOTO5_DATA__;
+const GROUP_ORDER = ['CC5A','CC5B','CC5D','CC5E'];
+const GROUP_COLORS = {CC5A:'#E7A94C', CC5B:'#4FB6A8', CC5D:'#8B93F2', CC5E:'#E2685C'};
+
+const fmtMoney = n => '$' + (n||0).toLocaleString('es-EC', {minimumFractionDigits:2, maximumFractionDigits:2});
+const fmtInt = n => (n||0).toLocaleString('es-EC');
+const fmtPct = n => (n===null || n===undefined) ? '—' : (n*100).toFixed(1) + '%';
+
+// ---------- Navigation ----------
+document.querySelectorAll('.tab-btn').forEach(btn=>{
+  btn.addEventListener('click', ()=>{
+    document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
+    document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));
+    btn.classList.add('active');
+    document.getElementById('view-'+btn.dataset.view).classList.add('active');
+  });
+});
+
+// ---------- Subnavegación de Individual ----------
+document.querySelectorAll('.subtab-btn').forEach(btn=>{
+  btn.addEventListener('click', ()=>{
+    document.querySelectorAll('.subtab-btn').forEach(b=>b.classList.remove('active'));
+    document.querySelectorAll('.subview').forEach(v=>v.classList.remove('active'));
+    btn.classList.add('active');
+    document.getElementById('subview-'+btn.dataset.subview).classList.add('active');
+    if(btn.dataset.subview === 'ingreso'){
+      renderIngresoForm(document.getElementById('agent-select').value);
+    }
+  });
+});
+
+
+// ---------- Subnavegación de Detalle (Resumen / Ordenes) ----------
+document.querySelectorAll('.detalle-subtab-btn').forEach(btn=>{
+  btn.addEventListener('click', ()=>{
+    document.querySelectorAll('.detalle-subtab-btn').forEach(b=>b.classList.remove('active'));
+    document.querySelectorAll('.detalle-view').forEach(v=>v.classList.remove('active'));
+    btn.classList.add('active');
+    document.getElementById('detalle-'+btn.dataset.detalle).classList.add('active');
+  });
+});
+
+// ---------- Vista Total ----------
+let chartVentasGrupo = null;
+let chartMiembros = null;
+
+function renderTotal(){
+  const t = DATA.total;
+  const range = getCurrentWeekRange();
+  const fmtDiaMes = iso => new Date(iso+'T00:00:00').toLocaleDateString('es-EC', {day:'2-digit', month:'long'});
+  document.getElementById('hero-ventas').innerHTML = fmtMoney(t.ventas);
+  document.getElementById('hero-note').textContent =
+    `Semana del ${fmtDiaMes(range.from)} al ${fmtDiaMes(range.to)} — sobre ${fmtInt(t.llamadas_totales)} llamadas y ${fmtInt(t.citas_confirmadas)} citas confirmadas en los 4 grupos.`;
+
+  const stats = [
+    {label:'Programas vendidos', value: fmtInt(t.programas_vendidos)},
+    {label:'Programas iniciados', value: fmtInt(t.programas_iniciados)},
+    {label:'Citas asistidas', value: fmtPct(t.pct_asistidas)},
+    {label:'Efectividad de citas', value: fmtPct(t.pct_efectividad_citas)},
+    {label:'Miembros activos (cierre)', value: fmtInt(t.miembros_final)},
+    {label:'Variación de miembros', value: (t.miembros_diferencia>=0?'+':'')+fmtInt(t.miembros_diferencia), cls: t.miembros_diferencia>=0?'pos':'neg'},
+  ];
+  document.getElementById('hero-stats').innerHTML = stats.map(s=>`
+    <div class="stat"><div class="label">${s.label}</div><div class="value ${s.cls||''}">${s.value}</div></div>
+  `).join('');
+
+  // chart ventas por grupo
+  const ctx = document.getElementById('chart-ventas-grupo');
+  if(chartVentasGrupo) chartVentasGrupo.destroy();
+  chartVentasGrupo = new Chart(ctx, {
+    type:'bar',
+    data:{
+      labels: GROUP_ORDER,
+      datasets:[{
+        data: GROUP_ORDER.map(g=> (DATA.grupos[g]||{}).ventas || 0),
+        backgroundColor: GROUP_ORDER.map(g=>GROUP_COLORS[g]),
+        borderRadius:6,
+        maxBarThickness:56
+      }]
+    },
+    options:{
+      plugins:{legend:{display:false}, tooltip:{callbacks:{label:c=>fmtMoney(c.raw)}}},
+      scales:{
+        y:{ticks:{color:'#8B98A6', callback:v=>'$'+v.toLocaleString()}, grid:{color:'#2A3542'}},
+        x:{ticks:{color:'#EAEFF3'}, grid:{display:false}}
+      }
+    }
+  });
+
+  // funnel
+  const steps = [
+    {name:'Citas confirmadas', value:t.citas_confirmadas},
+    {name:'Citas asistidas', value:t.citas_asistidas},
+    {name:'Programas vendidos', value:t.programas_vendidos},
+  ];
+  const max = steps[0].value || 1;
+  const colors = ['#E7A94C','#4FB6A8','#8B93F2'];
+  document.getElementById('funnel').innerHTML = steps.map((s,i)=>`
+    <div class="funnel-step">
+      <div class="name">${s.name}</div>
+      <div class="funnel-bar-track"><div class="funnel-bar-fill" style="width:${Math.max(4,(s.value/max*100))}%; background:${colors[i]}"></div></div>
+      <div class="pct">${fmtInt(s.value)}</div>
+    </div>
+  `).join('');
+
+  // miembros chart
+  const ctxM = document.getElementById('chart-miembros');
+  if(chartMiembros) chartMiembros.destroy();
+  chartMiembros = new Chart(ctxM, {
+    type:'bar',
+    data:{
+      labels: GROUP_ORDER,
+      datasets:[
+        {label:'Inicio de semana', data:GROUP_ORDER.map(g=>(DATA.grupos[g]||{}).miembros_inicio||0), backgroundColor:'#2A3542', borderRadius:5, maxBarThickness:34},
+        {label:'Cierre de semana', data:GROUP_ORDER.map(g=>(DATA.grupos[g]||{}).miembros_final||0), backgroundColor:'#4FB6A8', borderRadius:5, maxBarThickness:34}
+      ]
+    },
+    options:{
+      plugins:{legend:{labels:{color:'#EAEFF3'}}},
+      scales:{
+        y:{ticks:{color:'#8B98A6'}, grid:{color:'#2A3542'}},
+        x:{ticks:{color:'#EAEFF3'}, grid:{display:false}}
+      }
+    }
+  });
+
+  // El pie de página de "reclamos pendientes" pertenecía a los datos de
+  // prueba y no tiene una tabla real de Supabase detrás; se deja vacío.
+  document.getElementById('total-footnote').innerHTML = '';
+}
+
+// ---------- Vista Grupos ----------
+function renderGrupos(){
+  const html = GROUP_ORDER.filter(g=>DATA.grupos[g]).map(g=>{
+    const d = DATA.grupos[g];
+    const count = DATA.grupos_count[g] || 0;
+    return `
+    <div class="group-card" style="box-shadow:inset 3px 0 0 ${GROUP_COLORS[g]}">
+      <div class="gtitle">
+        <div class="gname">${g}</div>
+        <div class="gcount">${count} agentes</div>
+      </div>
+      <div class="group-metrics">
+        <div class="m"><div class="label">Ventas</div><div class="value">${fmtMoney(d.ventas)}</div></div>
+        <div class="m"><div class="label">Llamadas totales</div><div class="value">${fmtInt(d.llamadas_totales)}</div></div>
+        <div class="m"><div class="label">Programas vendidos</div><div class="value">${fmtInt(d.programas_vendidos)}</div></div>
+        <div class="m"><div class="label">Programas iniciados</div><div class="value">${fmtInt(d.programas_iniciados)}</div></div>
+        <div class="m"><div class="label">Citas confirmadas</div><div class="value">${fmtInt(d.citas_confirmadas)}</div></div>
+        <div class="m"><div class="label">Efectividad de citas</div><div class="value">${fmtPct(d.pct_efectividad_citas)}</div></div>
+        <div class="m"><div class="label">Miembros al cierre</div><div class="value">${fmtInt(d.miembros_final)}</div></div>
+        <div class="m"><div class="label">Variación de miembros</div><div class="value" style="color:${d.miembros_diferencia>=0?'#4FB6A8':'#E2685C'}">${d.miembros_diferencia>=0?'+':''}${fmtInt(d.miembros_diferencia)}</div></div>
+      </div>
+      <div class="gfoot">Asistencia a citas: ${fmtPct(d.pct_asistidas)} · Llamadas a tiempo: ${fmtPct(d.pct_llamadas_tiempo)}</div>
+    </div>`;
+  }).join('');
+  document.getElementById('group-cards').innerHTML = html;
+}
+
+// ---------- Vista Individual ----------
+const AGENT_KEYS = Object.keys(DATA.agentes).sort((a,b)=> DATA.agentes[a].nombre.localeCompare(DATA.agentes[b].nombre,'es'));
+// Roster completo (todos los equipos), usado para "Por grupo" y "General de
+// Piloto 5" — a diferencia de AGENT_KEYS (usado en "Individual"), este NO se
+// restringe por rol: Consultor y División 2B también deben ver el panorama
+// de los 4 equipos, aunque en "Individual" solo puedan elegir su propio nombre.
+const ALL_AGENT_KEYS = AGENT_KEYS.slice();
+
+function toLocalISO(d){
+  const tzOffset = d.getTimezoneOffset()*60000;
+  return new Date(d - tzOffset).toISOString().slice(0,10);
+}
+function todayISO(){ return toLocalISO(new Date()); }
+
+Object.values(DATA.agentes).forEach(a=>{
+  if(a.ventas_base === undefined) a.ventas_base = a.ventas || 0;
+  if(!Array.isArray(a.ordenes)) a.ordenes = [];
+  if(!Array.isArray(a.historial)){
+    a.historial = [{
+      fecha: todayISO(),
+      esImportado: true, // dato semilla de la importación original: no cuenta para "la semana actual"
+      ventas: a.ventas||0,
+      llamadas_totales: a.llamadas_totales||0,
+      programas_vendidos: a.programas_vendidos||0,
+      programas_iniciados: a.programas_iniciados||0,
+      citas_confirmadas: a.citas_confirmadas||0,
+      pct_efectividad_citas: a.pct_efectividad_citas,
+      miembros_final: a.miembros_final||0,
+      miembros_diferencia: a.miembros_diferencia||0,
+    }];
+  }
+});
+
+function getCurrentWeekRange(referenceDate){
+  // La semana operativa va de viernes a jueves.
+  const ref = referenceDate ? new Date(referenceDate+'T00:00:00') : new Date();
+  const day = ref.getDay(); // 0=domingo ... 5=viernes ... 6=sábado
+  const diffToFriday = (day - 5 + 7) % 7;
+  const friday = new Date(ref);
+  friday.setDate(ref.getDate() - diffToFriday);
+  const thursday = new Date(friday);
+  thursday.setDate(friday.getDate() + 6);
+  return { from: toLocalISO(friday), to: toLocalISO(thursday) };
+}
+
+function computeWeekSnapshot(a, range){
+  const entries = (a.historial||[]).filter(h=> !h.esImportado && h.fecha>=range.from && h.fecha<=range.to);
+  const sorted = entries.slice().sort((x,y)=> x.fecha<y.fecha?-1:1);
+  const snap = {};
+  GROUP_SUM_FIELDS.forEach(f=> snap[f]=0);
+  sorted.forEach(h=>{
+    GROUP_SUM_FIELDS.forEach(f=>{
+      if(f==='miembros_inicio' || f==='miembros_final') return; // se toman como foto del día, no se suman
+      snap[f] += (h[f]||0);
+    });
+  });
+  snap.miembros_inicio = sorted.length ? (sorted[0].miembros_inicio||0) : 0;
+  snap.miembros_final = sorted.length ? (sorted[sorted.length-1].miembros_final||0) : 0;
+  snap.pct_asistidas = snap.citas_confirmadas ? snap.citas_asistidas/snap.citas_confirmadas : null;
+  snap.pct_llamadas_tiempo = snap.citas_confirmadas ? snap.citas_llamadas_a_tiempo/snap.citas_confirmadas : null;
+  snap.pct_efectividad_citas = snap.citas_totales ? snap.citas_completadas/snap.citas_totales : null;
+  snap.pct_pp_iniciados = snap.programas_debian_iniciar ? snap.programas_iniciados/snap.programas_debian_iniciar : null;
+  return snap;
+}
+
+function recomputeAgentVentas(a){
+  const base = a.ventas_base||0;
+  const sum = (a.ordenes||[]).reduce((s,o)=> s+(o.valor||0), 0);
+  a.ventas = base + sum;
+}
+
+function dailyOrdersSum(a, dateStr){
+  return (a.ordenes||[]).filter(o=>o.fecha===dateStr).reduce((s,o)=> s+(o.valor||0), 0);
+}
+
+function syncHistorialVentasForDate(a, dateStr){
+  if(!Array.isArray(a.historial)) a.historial = [];
+  let entry = a.historial.find(h=>h.fecha===dateStr);
+  if(!entry){ entry = {fecha:dateStr}; a.historial.push(entry); }
+  entry.ventas = dailyOrdersSum(a, dateStr);
+}
+
+function syncHistorialToday(a){
+  if(!Array.isArray(a.historial)) a.historial = [];
+  const today = todayISO();
+  let entry = a.historial.find(h=>h.fecha===today);
+  if(!entry){ entry = {fecha:today}; a.historial.push(entry); }
+  entry.ventas = dailyOrdersSum(a, today);
+  entry.epm = a.epm||0;
+  entry.llamadas_entrantes = a.llamadas_entrantes||0;
+  entry.llamadas_salientes = a.llamadas_salientes||0;
+  entry.llamadas_totales = a.llamadas_totales||0;
+  entry.programas_vendidos = a.programas_vendidos||0;
+  entry.programas_debian_iniciar = a.programas_debian_iniciar||0;
+  entry.programas_iniciados = a.programas_iniciados||0;
+  entry.programas_pendientes = a.programas_pendientes||0;
+  entry.citas_confirmadas = a.citas_confirmadas||0;
+  entry.citas_asistidas = a.citas_asistidas||0;
+  entry.citas_llamadas_a_tiempo = a.citas_llamadas_a_tiempo||0;
+  entry.citas_totales = a.citas_totales||0;
+  entry.citas_completadas = a.citas_completadas||0;
+  entry.citas_no_cumplidas = a.citas_no_cumplidas||0;
+  entry.miembros_inicio = a.miembros_inicio||0;
+  entry.miembros_final = a.miembros_final||0;
+  entry.miembros_diferencia = a.miembros_diferencia||0;
+  entry.episodios_observados = a.episodios_observados||0;
+  entry.videos_enviados = a.videos_enviados||0;
+  entry.pct_efectividad_citas = a.pct_efectividad_citas;
+}
+
+function updateVsoDisplay(key){
+  const el = document.getElementById('ingreso-vso-total');
+  const nameEl = document.getElementById('ingreso-agent-name');
+  const a = DATA.agentes[key];
+  if(!el || !nameEl || !a) return;
+  if(nameEl.textContent === `${a.nombre} — ${a.grupo}`){
+    el.textContent = fmtMoney(dailyOrdersSum(a, todayISO()));
+  }
+}
+
+function addOrder(a, val){
+  if(!Array.isArray(a.ordenes)) a.ordenes = [];
+  const order = {id:'ord_'+Date.now().toString(36)+Math.random().toString(36).slice(2,7), valor: val, fecha: todayISO()};
+  a.ordenes.push(order);
+  recomputeAgentVentas(a);
+  return order;
+}
+
+function currentAgentKey(){
+  const sel = document.getElementById('agent-select');
+  return (sel && sel.value) || AGENT_KEYS[0];
+}
+
+function fillAgentSelect(){
+  const sel = document.getElementById('agent-select');
+  sel.innerHTML = AGENT_KEYS.map(k=>`<option value="${k}">${DATA.agentes[k].nombre}</option>`).join('');
+  if(!sel.value && AGENT_KEYS.length) sel.value = AGENT_KEYS[0];
+  renderAgentDropdownList('');
+  updateAgentSelectBtnLabel();
+}
+
+// ---------- Menú desplegable de agentes (con buscador) ----------
+// El <select id="agent-select"> nativo sigue siendo la fuente real de la
+// selección (todo el resto del código lee su .value y escucha su evento
+// 'change'); este menú es solo una capa visual encima que, al elegir un
+// agente, actualiza el <select> y dispara 'change' manualmente.
+function updateAgentSelectBtnLabel(){
+  const sel = document.getElementById('agent-select');
+  const label = document.getElementById('agent-select-btn-label');
+  if(!sel || !label) return;
+  const key = sel.value;
+  label.textContent = (DATA.agentes[key] && DATA.agentes[key].nombre) || '—';
+}
+
+function renderAgentDropdownList(filtro){
+  const list = document.getElementById('agent-select-list');
+  if(!list) return;
+  const sel = document.getElementById('agent-select');
+  const term = (filtro||'').trim().toLocaleLowerCase('es');
+  const opciones = AGENT_KEYS.filter(k=>{
+    const nombre = (DATA.agentes[k] && DATA.agentes[k].nombre) || '';
+    return !term || nombre.toLocaleLowerCase('es').includes(term);
+  });
+  if(!opciones.length){
+    list.innerHTML = `<div class="agent-select-empty">Sin resultados</div>`;
+    return;
+  }
+  list.innerHTML = opciones.map(k=>{
+    const nombre = (DATA.agentes[k] && DATA.agentes[k].nombre) || '';
+    const sel_ = k===sel.value ? ' selected' : '';
+    return `<button type="button" class="agent-select-option${sel_}" data-agent-key="${k}">${nombre}</button>`;
+  }).join('');
+}
+
+function openAgentDropdown(){
+  const sel = document.getElementById('agent-select');
+  const wrap = document.getElementById('agent-select-wrap');
+  if(!sel || sel.disabled || !wrap) return;
+  wrap.classList.add('open');
+  document.getElementById('agent-select-btn').setAttribute('aria-expanded','true');
+  const search = document.getElementById('agent-select-search');
+  renderAgentDropdownList('');
+  if(search){ search.value=''; search.focus(); }
+}
+
+function closeAgentDropdown(){
+  const wrap = document.getElementById('agent-select-wrap');
+  if(!wrap) return;
+  wrap.classList.remove('open');
+  const btn = document.getElementById('agent-select-btn');
+  if(btn) btn.setAttribute('aria-expanded','false');
+}
+
+function selectAgentFromDropdown(key){
+  const sel = document.getElementById('agent-select');
+  if(!sel || !key) return;
+  sel.value = key;
+  updateAgentSelectBtnLabel();
+  closeAgentDropdown();
+  sel.dispatchEvent(new Event('change'));
+}
+
+document.getElementById('agent-select-btn').addEventListener('click', ()=>{
+  const wrap = document.getElementById('agent-select-wrap');
+  if(wrap.classList.contains('open')) closeAgentDropdown();
+  else openAgentDropdown();
+});
+document.getElementById('agent-select-search').addEventListener('input', e=>{
+  renderAgentDropdownList(e.target.value);
+});
+document.getElementById('agent-select-search').addEventListener('click', e=> e.stopPropagation());
+document.getElementById('agent-select-list').addEventListener('click', e=>{
+  const btn = e.target.closest('.agent-select-option');
+  if(!btn) return;
+  selectAgentFromDropdown(btn.dataset.agentKey);
+});
+document.addEventListener('click', e=>{
+  const wrap = document.getElementById('agent-select-wrap');
+  if(wrap && !wrap.contains(e.target)) closeAgentDropdown();
+});
+document.addEventListener('keydown', e=>{
+  if(e.key==='Escape') closeAgentDropdown();
+});
+
+// ============================================================================
+// INDIVIDUAL — conectado a Supabase
+// Tablas usadas (nombres y columnas EXACTOS, sin inventar nada):
+//   "Información de consultores": id, "nombre y apellido", "Rol", "Equipo", auth_user_id
+//   "Registro diario" (Consultor): id, auth_user_id, fecha, epm, llamadas_entrantes,
+//     llamadas_salientes, programas_vendidos, programas_iniciados, citas_confirmadas,
+//     citas_asistidas, citas_llamadas_tiempo, citas_totales_dia, citas_totales_asistidas,
+//     miembros_activos_dia, episodios_observados, videos_enviados, created_at
+//   "Registro diario Div 2B" (División 2B): id, auth_user_id, fecha, epm,
+//     llamadas_salientes, llamadas_entrantes, pp_vendidos, episodios_observados, videos_enviados
+//   "VSO": id, auth_user_id, fecha, vso, created_at
+// ============================================================================
+
+const CAMPOS_REGISTRO_CONSULTOR = [
+  {key:'epm', label:'EPM'},
+  {key:'llamadas_entrantes', label:'Llamadas Entrantes'},
+  {key:'llamadas_salientes', label:'Llamadas Salientes'},
+  {key:'programas_vendidos', label:'Programas Vendidos'},
+  {key:'programas_iniciados', label:'Programas Iniciados'},
+  {key:'citas_confirmadas', label:'Citas confirmadas'},
+  {key:'citas_asistidas', label:'Citas Asistidas'},
+  {key:'citas_llamadas_tiempo', label:'Citas llamadas a tiempo'},
+  {key:'citas_totales_dia', label:'Citas totales del día'},
+  {key:'citas_totales_asistidas', label:'Citas totales Asistidas'},
+  {key:'miembros_activos_dia', label:'Miembros Activos del día'},
+  {key:'episodios_observados', label:'Episodios Observados'},
+  {key:'videos_enviados', label:'Videos Enviados'},
+];
+
+const CAMPOS_REGISTRO_DIV2B = [
+  {key:'epm', label:'EPM'},
+  {key:'llamadas_salientes', label:'Llamadas Salientes'},
+  {key:'llamadas_entrantes', label:'Llamadas Entrantes'},
+  {key:'pp_vendidos', label:'PP Vendidos'},
+  {key:'episodios_observados', label:'Episodios Observados'},
+  {key:'videos_enviados', label:'Videos Enviados'},
+];
+
+function esRolDiv2B(rol){ return rol === 'División 2B'; }
+function tablaRegistroParaRol(rol){ return esRolDiv2B(rol) ? 'Registro diario Div 2B' : 'Registro diario'; }
+function camposRegistroParaRol(rol){ return esRolDiv2B(rol) ? CAMPOS_REGISTRO_DIV2B : CAMPOS_REGISTRO_CONSULTOR; }
+
+function getTargetInfo(key){
+  const a = DATA.agentes[key];
+  if(!a) return null;
+  return { nombre:a.nombre, grupo:a.grupo, rol:a.rol || null, authUserId:a.auth_user_id || null };
+}
+
+function fechaObjetivoIngreso(){
+  const range = getSelectedDateRange();
+  if(!range) return todayISO();
+  return range.to; // un solo día: from===to. Rango: se edita el último día del rango.
+}
+
+// ---------- Acceso a datos (Supabase) ----------
+async function fetchRegistroDiario(tabla, authUserId, fecha){
+  const { data, error } = await sb.from(tabla).select('*').eq('auth_user_id', authUserId).eq('fecha', fecha).maybeSingle();
+  return { data, error };
+}
+async function fetchRegistroDiarioRango(tabla, authUserId, from, to){
+  const { data, error } = await sb.from(tabla).select('*').eq('auth_user_id', authUserId).gte('fecha', from).lte('fecha', to).order('fecha', {ascending:false});
+  return { data: data||[], error };
+}
+async function guardarRegistroDiario(tabla, authUserId, fecha, campos, equipo){
+  const { data: existente, error: errBuscar } = await fetchRegistroDiario(tabla, authUserId, fecha);
+  if(errBuscar) return { error: errBuscar };
+  if(existente){
+    // Al editar un registro ya existente NO se toca su "equipo": debe seguir
+    // contando para el equipo con el que se creó originalmente.
+    const { error } = await sb.from(tabla).update(campos).eq('id', existente.id);
+    return { error };
+  }
+  const { error } = await sb.from(tabla).insert({ ...campos, auth_user_id: authUserId, fecha, equipo });
+  return { error };
+}
+async function fetchVsoRango(authUserId, from, to){
+  const { data, error } = await sb.from('VSO').select('*').eq('auth_user_id', authUserId).gte('fecha', from).lte('fecha', to).order('fecha', {ascending:false});
+  return { data: data||[], error };
+}
+async function crearVsoFila(authUserId, fecha, valor, equipo){
+  const { data, error } = await sb.from('VSO').insert({ auth_user_id: authUserId, fecha, vso: valor, equipo }).select().maybeSingle();
+  return { data, error };
+}
+async function actualizarVsoFila(id, valor){
+  const { error } = await sb.from('VSO').update({ vso: valor }).eq('id', id);
+  return { error };
+}
+async function actualizarNotaVsoFila(id, nota){
+  const { error } = await sb.from('VSO').update({ nota: nota || null }).eq('id', id);
+  return { error };
+}
+async function eliminarVsoFila(id){
+  const { error } = await sb.from('VSO').delete().eq('id', id);
+  return { error };
+}
+
+function escapeHtml(str){
+  return String(str).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+// ---------- Tarjeta de resumen (arriba de Detalle) ----------
+async function renderAgentDetail(key){
+  const el = document.getElementById('agent-detail');
+  const info = getTargetInfo(key);
+  if(!info){ el.innerHTML = '<div class="ingreso-empty">Selecciona un agente.</div>'; return; }
+  if(!info.authUserId){ el.innerHTML = '<div class="ingreso-empty">Este consultor no tiene auth_user_id vinculado en "Información de consultores".</div>'; return; }
+  const range = getSelectedDateRange();
+  if(!range){ el.innerHTML = '<div class="ingreso-empty">Selecciona una fecha.</div>'; return; }
+
+  el.innerHTML = '<div class="ingreso-empty">Cargando…</div>';
+  const tabla = tablaRegistroParaRol(info.rol);
+  const campos = camposRegistroParaRol(info.rol);
+
+  const [regRes, vsoRes] = await Promise.all([
+    fetchRegistroDiarioRango(tabla, info.authUserId, range.from, range.to),
+    fetchVsoRango(info.authUserId, range.from, range.to),
+  ]);
+  if(regRes.error || vsoRes.error){
+    el.innerHTML = `<div class="ingreso-empty">Error de Supabase: ${escapeHtml((regRes.error||vsoRes.error).message)}</div>`;
+    return;
+  }
+
+  const filasVso = vsoRes.data;
+  const vso = filasVso.reduce((s,f)=> s+(Number(f.vso)||0), 0);
+  const cantidadOrdenes = filasVso.length;
+  const promedioVso = cantidadOrdenes ? vso/cantidadOrdenes : null;
+
+  const filasRegistro = regRes.data;
+  const sumas = {};
+  campos.forEach(c=> sumas[c.key]=0);
+  filasRegistro.forEach(f=> campos.forEach(c=>{ if(c.key !== 'miembros_activos_dia') sumas[c.key] += (Number(f[c.key])||0); }));
+  const masReciente = filasRegistro[0]; // ya viene ordenado desc por fecha
+  if(campos.some(c=>c.key==='miembros_activos_dia')){
+    sumas.miembros_activos_dia = masReciente ? (Number(masReciente.miembros_activos_dia)||0) : 0;
+  }
+
+  // "Efectividad de programas" = EPM ÷ Programas vendidos. El campo de
+  // programas vendidos se llama distinto según la tabla real: para
+  // Consultor es "programas_vendidos", para División 2B es "pp_vendidos".
+  const claveVendidos = esRolDiv2B(info.rol) ? 'pp_vendidos' : 'programas_vendidos';
+  const vendidos = sumas[claveVendidos] || 0;
+  const efectividadProgramas = vendidos ? (sumas.epm||0) / vendidos : null;
+
+  const metricCards = campos.map(c=>
+    `<div class="m"><div class="label">${c.label}</div><div class="value">${fmtInt(sumas[c.key])}</div></div>`
+  ).join('');
+
+  el.innerHTML = `
+    <div class="aname">${escapeHtml(info.nombre)}</div>
+    <div class="agroup"><span class="tag">${escapeHtml(info.grupo||'')}</span> <span class="tag">${escapeHtml(info.rol||'')}</span></div>
+    <div class="agent-metrics">
+      <div class="m"><div class="label">VSO</div><div class="value">${fmtMoney(vso)}</div></div>
+      <div class="m"><div class="label">Número de Ordenes</div><div class="value">${fmtInt(cantidadOrdenes)}</div></div>
+      <div class="m"><div class="label">Promedio VSO</div><div class="value">${promedioVso===null?'—':fmtMoney(promedioVso)}</div></div>
+      <div class="m"><div class="label">Efectividad de programas</div><div class="value">${efectividadProgramas===null?'—':efectividadProgramas.toFixed(2)}</div></div>
+      ${metricCards}
+    </div>
+  `;
+}
+
+// ---------- Resumen (histórico de "Registro diario" / "Registro diario Div 2B") ----------
+async function renderResumenTable(key){
+  const thead = document.getElementById('resumen-table-head');
+  const tbody = document.getElementById('resumen-table-body');
+  if(!thead || !tbody) return;
+  const info = getTargetInfo(key);
+  const campos = info ? camposRegistroParaRol(info.rol) : CAMPOS_REGISTRO_CONSULTOR;
+  thead.innerHTML = `<tr><th>Fecha</th>${campos.map(c=>`<th class="num">${c.label}</th>`).join('')}</tr>`;
+  const colspan = campos.length + 1;
+
+  if(!info || !info.authUserId){ tbody.innerHTML = `<tr><td colspan="${colspan}" class="ingreso-empty">Sin auth_user_id vinculado.</td></tr>`; return; }
+  const range = getSelectedDateRange();
+  if(!range){ tbody.innerHTML = `<tr><td colspan="${colspan}" class="ingreso-empty">Selecciona una fecha.</td></tr>`; return; }
+
+  tbody.innerHTML = `<tr><td colspan="${colspan}" class="ingreso-empty">Cargando…</td></tr>`;
+  const tabla = tablaRegistroParaRol(info.rol);
+  const { data: filas, error } = await fetchRegistroDiarioRango(tabla, info.authUserId, range.from, range.to);
+  if(error){ tbody.innerHTML = `<tr><td colspan="${colspan}" class="ingreso-empty">Error: ${escapeHtml(error.message)}</td></tr>`; return; }
+  if(!filas.length){ tbody.innerHTML = `<tr><td colspan="${colspan}" class="ingreso-empty">No hay registros en este rango.</td></tr>`; return; }
+
+  tbody.innerHTML = filas.map(f=>`
+    <tr>
+      <td>${formatDateEs(f.fecha)}</td>
+      ${campos.map(c=>`<td class="num">${fmtInt(f[c.key])}</td>`).join('')}
+    </tr>
+  `).join('');
+}
+
+// ---------- Ordenes (tabla "VSO") ----------
+let editingValueVsoId = null;
+
+let editingNotaVsoId = null;
+
+async function renderOrdenesTable(key){
+  const tbody = document.getElementById('ordenes-table-body');
+  if(!tbody) return;
+  const info = getTargetInfo(key);
+  if(!info || !info.authUserId){ tbody.innerHTML = `<tr><td colspan="3" class="ingreso-empty">Sin auth_user_id vinculado.</td></tr>`; return; }
+  const range = getSelectedDateRange();
+  if(!range){ tbody.innerHTML = `<tr><td colspan="3" class="ingreso-empty">Selecciona una fecha.</td></tr>`; return; }
+
+  tbody.innerHTML = `<tr><td colspan="3" class="ingreso-empty">Cargando…</td></tr>`;
+  const { data: filas, error } = await fetchVsoRango(info.authUserId, range.from, range.to);
+  if(error){ tbody.innerHTML = `<tr><td colspan="3" class="ingreso-empty">Error: ${escapeHtml(error.message)}</td></tr>`; return; }
+  if(!filas.length){ tbody.innerHTML = `<tr><td colspan="3" class="ingreso-empty">No hay órdenes (VSO) en este rango.</td></tr>`; return; }
+
+  tbody.innerHTML = filas.map(f=>{
+    const valueCellHtml = editingValueVsoId === f.id
+      ? `<span class="orden-edit-inline">
+          <input type="number" class="no-spin orden-edit-input" id="vso-edit-input-${f.id}" step="0.01" value="${f.vso}">
+          <button type="button" class="btn-icon" data-save-vso="${f.id}" title="Guardar">✔</button>
+          <button type="button" class="btn-icon" data-cancel-vso="${f.id}" title="Cancelar">✕</button>
+        </span>`
+      : `${f.nota ? `<span class="nota-dot" title="${escapeHtml(f.nota)}"></span>` : ''}${fmtMoney(f.vso)}`;
+
+    const notaRowHtml = editingNotaVsoId === f.id
+      ? `<tr class="orden-note-edit-row">
+          <td colspan="3">
+            <div class="nota-edit-inline">
+              <input type="text" id="nota-edit-input-${f.id}" placeholder="Escribe una nota…" value="${escapeHtml(f.nota||'')}">
+              <button type="button" class="btn-mini" data-save-nota="${f.id}">Guardar</button>
+              <button type="button" class="btn-mini" data-cancel-nota="${f.id}">Cancelar</button>
+            </div>
+          </td>
+        </tr>`
+      : '';
+
+    return `
+      <tr>
+        <td>${formatDateEs(f.fecha)}</td>
+        <td class="num">${valueCellHtml}</td>
+        <td class="ord-menu-col"><button type="button" class="ord-menu-btn" data-vso-id="${f.id}" data-agent-key="${key}" data-has-nota="${f.nota ? '1':'0'}">⋮</button></td>
+      </tr>
+      ${notaRowHtml}
+    `;
+  }).join('');
+
+  tbody.querySelectorAll('.ord-menu-btn').forEach(btn=>{
+    btn.addEventListener('click', (e)=>{ e.stopPropagation(); toggleOrderMenu(btn.dataset.agentKey, btn.dataset.vsoId, btn); });
+  });
+  tbody.querySelectorAll('[data-save-vso]').forEach(btn=>{
+    btn.addEventListener('click', async ()=>{
+      const id = btn.dataset.saveVso;
+      const input = document.getElementById('vso-edit-input-'+id);
+      const val = parseFloat(input.value);
+      if(isNaN(val)) return;
+      editingValueVsoId = null;
+      await modificarVso(key, id, val);
+    });
+  });
+  tbody.querySelectorAll('[data-cancel-vso]').forEach(btn=>{
+    btn.addEventListener('click', ()=>{ editingValueVsoId = null; renderOrdenesTable(key); });
+  });
+  tbody.querySelectorAll('.orden-edit-input').forEach(inp=>{
+    inp.addEventListener('keydown', e=>{
+      if(e.key==='Enter'){ e.preventDefault(); document.querySelector(`[data-save-vso="${editingValueVsoId}"]`).click(); }
+      else if(e.key==='Escape'){ e.preventDefault(); document.querySelector(`[data-cancel-vso="${editingValueVsoId}"]`).click(); }
+    });
+    inp.focus();
+    inp.select();
+  });
+
+  tbody.querySelectorAll('[data-save-nota]').forEach(btn=>{
+    btn.addEventListener('click', async ()=>{
+      const id = btn.dataset.saveNota;
+      const input = document.getElementById('nota-edit-input-'+id);
+      const nota = input.value.trim();
+      editingNotaVsoId = null;
+      await guardarNotaVso(key, id, nota);
+    });
+  });
+  tbody.querySelectorAll('[data-cancel-nota]').forEach(btn=>{
+    btn.addEventListener('click', ()=>{ editingNotaVsoId = null; renderOrdenesTable(key); });
+  });
+  tbody.querySelectorAll('.nota-edit-inline input[type=text]').forEach(inp=>{
+    inp.addEventListener('keydown', e=>{
+      if(e.key==='Enter'){ e.preventDefault(); document.querySelector(`[data-save-nota="${editingNotaVsoId}"]`).click(); }
+      else if(e.key==='Escape'){ e.preventDefault(); document.querySelector(`[data-cancel-nota="${editingNotaVsoId}"]`).click(); }
+    });
+    inp.focus();
+  });
+}
+
+function refreshDetalleTables(key){
+  renderResumenTable(key);
+  renderOrdenesTable(key);
+}
+
+function closeOrderMenu(){
+  if(window.__ordMenuEl){ window.__ordMenuEl.remove(); window.__ordMenuEl = null; window.__ordMenuOrderId = null; }
+}
+
+function toggleOrderMenu(key, vsoId, btn){
+  const wasOpenForSame = window.__ordMenuEl && window.__ordMenuOrderId === vsoId;
+  closeOrderMenu();
+  if(wasOpenForSame) return;
+
+  const tieneNota = btn.dataset.hasNota === '1';
+
+  const menu = document.createElement('div');
+  menu.className = 'ord-menu';
+  menu.innerHTML = `
+    <button type="button" data-action="modificar">Modificar</button>
+    <button type="button" data-action="eliminar">Eliminar</button>
+    <button type="button" data-action="nota">${tieneNota ? 'Editar nota' : 'Agregar nota'}</button>
+    ${tieneNota ? `<button type="button" data-action="quitar-nota">Quitar nota</button>` : ''}
+  `;
+  document.body.appendChild(menu);
+  const rect = btn.getBoundingClientRect();
+  menu.style.top = (rect.bottom + window.scrollY + 4) + 'px';
+  menu.style.left = (rect.right + window.scrollX - menu.offsetWidth) + 'px';
+
+  menu.querySelectorAll('button').forEach(mbtn=>{
+    mbtn.addEventListener('click', (e)=>{
+      e.stopPropagation();
+      const action = mbtn.dataset.action;
+      closeOrderMenu();
+      if(action === 'modificar'){
+        editingValueVsoId = vsoId;
+        renderOrdenesTable(key);
+      } else if(action === 'eliminar'){
+        confirmEliminarOrden(key, vsoId);
+      } else if(action === 'nota'){
+        editingNotaVsoId = vsoId;
+        renderOrdenesTable(key);
+      } else if(action === 'quitar-nota'){
+        quitarNotaVso(key, vsoId);
+      }
+    });
+  });
+
+  window.__ordMenuEl = menu;
+  window.__ordMenuOrderId = vsoId;
+  setTimeout(()=> document.addEventListener('click', closeOrderMenu, {once:true}), 0);
+}
+
+function showConfirmModal(message, onAccept){
+  closeConfirmModal();
+  const overlay = document.createElement('div');
+  overlay.className = 'confirm-overlay';
+  overlay.innerHTML = `
+    <div class="confirm-modal">
+      <p class="confirm-message">${escapeHtml(message)}</p>
+      <div class="confirm-actions">
+        <button type="button" class="btn-mini" data-confirm="cancel">Cancelar</button>
+        <button type="button" class="btn-mini btn-mini-danger" data-confirm="accept">Aceptar</button>
+      </div>
+    </div>
+  `;
+  document.body.appendChild(overlay);
+  overlay.querySelector('[data-confirm="cancel"]').addEventListener('click', closeConfirmModal);
+  overlay.querySelector('[data-confirm="accept"]').addEventListener('click', ()=>{
+    closeConfirmModal();
+    onAccept();
+  });
+  overlay.addEventListener('click', (e)=>{ if(e.target === overlay) closeConfirmModal(); });
+  window.__confirmOverlay = overlay;
+}
+
+function closeConfirmModal(){
+  if(window.__confirmOverlay){ window.__confirmOverlay.remove(); window.__confirmOverlay = null; }
+}
+
+function confirmEliminarOrden(key, vsoId){
+  showConfirmModal('¿Está segura de eliminar esta orden?', ()=> eliminarVso(key, vsoId));
+}
+
+// ---------- Crear nuevo usuario ----------
+function openCrearUsuarioModal(){
+  closeCrearUsuarioModal();
+  const overlay = document.createElement('div');
+  overlay.className = 'confirm-overlay';
+  overlay.innerHTML = `
+    <div class="user-modal">
+      <button type="button" class="user-modal-close" id="crear-usuario-cerrar-x" aria-label="Cerrar">
+        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+      </button>
+      <h3 class="user-modal-title">Crear nuevo usuario</h3>
+      <form id="crear-usuario-form">
+        <div class="form-field-modal">
+          <label for="nu-nombre">Nombre de usuario</label>
+          <input type="text" id="nu-nombre" required>
+        </div>
+        <div class="form-field-modal">
+          <label for="nu-correo">Correo</label>
+          <input type="email" id="nu-correo" required>
+        </div>
+        <div class="form-field-modal">
+          <label for="nu-password">Crear contraseña</label>
+          <div class="password-field-wrap">
+            <input type="password" id="nu-password" required>
+            <button type="button" class="password-toggle-btn" id="nu-password-toggle" aria-label="Mostrar contraseña">
+              <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" id="nu-password-eye-open"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8Z"></path><circle cx="12" cy="12" r="3"></circle></svg>
+              <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" id="nu-password-eye-closed" style="display:none;"><path d="M9.88 9.88a3 3 0 1 0 4.24 4.24"></path><path d="M10.73 5.08A10.43 10.43 0 0 1 12 5c7 0 11 8 11 8a17.83 17.83 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"></path><path d="M6.61 6.61A17.44 17.44 0 0 0 1 12s4 8 11 8a10.4 10.4 0 0 0 5.39-1.61"></path><line x1="2" y1="2" x2="22" y2="22"></line></svg>
+            </button>
+          </div>
+        </div>
+        <div class="form-field-modal">
+          <label for="nu-rol">Rol</label>
+          <select id="nu-rol">
+            <option value="Supervisor">Supervisor</option>
+            <option value="Consultor">Consultor</option>
+            <option value="División 2B">División 2B</option>
+          </select>
+        </div>
+        <div class="form-field-modal">
+          <label for="nu-equipo">Equipo</label>
+          <select id="nu-equipo">
+            <option value="ADMIN">ADMIN</option>
+            <option value="CC5A">CC5A</option>
+            <option value="CC5B">CC5B</option>
+            <option value="CC5D">CC5D</option>
+            <option value="CC5E">CC5E</option>
+          </select>
+        </div>
+        <div class="user-modal-actions">
+          <button type="button" class="btn-mini" id="crear-usuario-cancelar">Cancelar</button>
+          <button type="submit" class="btn-primary">Guardar</button>
+        </div>
+        <div class="user-modal-status" id="crear-usuario-status"></div>
+      </form>
+    </div>
+  `;
+  document.body.appendChild(overlay);
+  window.__userModalOverlay = overlay;
+
+  overlay.addEventListener('click', (e)=>{ if(e.target===overlay) closeCrearUsuarioModal(); });
+  document.getElementById('crear-usuario-cerrar-x').addEventListener('click', closeCrearUsuarioModal);
+  document.getElementById('crear-usuario-cancelar').addEventListener('click', closeCrearUsuarioModal);
+  document.getElementById('crear-usuario-form').addEventListener('submit', (e)=>{
+    e.preventDefault();
+    guardarNuevoUsuario();
+  });
+  document.getElementById('nu-password-toggle').addEventListener('click', ()=>{
+    const input = document.getElementById('nu-password');
+    const eyeOpen = document.getElementById('nu-password-eye-open');
+    const eyeClosed = document.getElementById('nu-password-eye-closed');
+    const btn = document.getElementById('nu-password-toggle');
+    const showing = input.type === 'text';
+    input.type = showing ? 'password' : 'text';
+    eyeOpen.style.display = showing ? '' : 'none';
+    eyeClosed.style.display = showing ? 'none' : '';
+    btn.setAttribute('aria-label', showing ? 'Mostrar contraseña' : 'Ocultar contraseña');
+  });
+  document.getElementById('nu-nombre').focus();
+}
+
+function closeCrearUsuarioModal(){
+  if(window.__userModalOverlay){ window.__userModalOverlay.remove(); window.__userModalOverlay = null; }
+}
+
+function generateAgentKeyFromNombre(nombre){
+  const base = nombre.trim().toLowerCase();
+  let key = base;
+  let i = 2;
+  while(DATA.agentes[key]){
+    key = `${base} (${i})`;
+    i++;
+  }
+  return key;
+}
+
+function insertAgentKeySorted(key){
+  if(!AGENT_KEYS.includes(key)) AGENT_KEYS.push(key);
+  AGENT_KEYS.sort((a,b)=> DATA.agentes[a].nombre.localeCompare(DATA.agentes[b].nombre,'es'));
+  if(!ALL_AGENT_KEYS.includes(key)) ALL_AGENT_KEYS.push(key);
+  ALL_AGENT_KEYS.sort((a,b)=> DATA.agentes[a].nombre.localeCompare(DATA.agentes[b].nombre,'es'));
+}
+
+function blankAgentRecord(nombre, grupo){
+  const rec = { nombre, grupo: grupo || '' };
+  GROUP_SUM_FIELDS.forEach(f=> rec[f]=0);
+  rec.pct_asistidas = null;
+  rec.pct_llamadas_tiempo = null;
+  rec.pct_efectividad_citas = null;
+  rec.pct_pp_iniciados = null;
+  return rec;
+}
+
+async function getCreatedAgentesList(){
+  try{
+    const res = await window.storage.get('piloto5-agentes-creados', false);
+    if(res && res.value){
+      const parsed = JSON.parse(res.value);
+      if(Array.isArray(parsed)) return parsed;
+    }
+  }catch(e){
+    // sin almacenamiento persistente disponible o clave inexistente
+  }
+  return [];
+}
+
+async function persistCreatedAgentesList(list){
+  try{
+    await window.storage.set('piloto5-agentes-creados', JSON.stringify(list), false);
+  }catch(e){
+    // sin almacenamiento persistente disponible; el agente queda creado solo en esta sesión
+  }
+}
+
+async function loadCreatedAgentes(){
+  const created = await getCreatedAgentesList();
+  created.forEach(rec=>{
+    if(rec && rec.key && rec.data && !DATA.agentes[rec.key]){
+      DATA.agentes[rec.key] = rec.data;
+      insertAgentKeySorted(rec.key);
+    }
+  });
+}
+
+// ============================================================================
+// CONSULTORES REALES DESDE SUPABASE ("Información de consultores")
+// ----------------------------------------------------------------------------
+// Sustituye el listado estático de nombres (que antes salía únicamente de
+// AGENT_KEYS/DATA.agentes, escritos en el HTML) por los datos reales de la
+// tabla "Información de consultores", relacionados con el usuario autenticado
+// mediante auth_user_id = auth.uid().
+//
+// NOTA sobre nombres de columnas: aquí se usa "nombre y apellido" en minúsculas,
+// igual que en la Edge Function create-user ya desplegada. Si tu columna real
+// tiene otra combinación de mayúsculas/minúsculas, esta es la única línea
+// (CONSULTORES_SELECT) que habría que ajustar.
+//
+// La restricción de "un Consultor / División 2B no puede ver a otros" se aplica
+// aquí solo como reflejo visual (se deshabilita el <select>, no se elimina).
+// La protección real debe seguir viniendo de tus políticas RLS en Supabase.
+// ============================================================================
+const CONSULTORES_TABLE = 'Información de consultores';
+const CONSULTORES_SELECT = 'id, "nombre y apellido", "Rol", "Equipo", auth_user_id';
+
+function keyForConsultorNombre(nombre){
+  const norm = nombre.trim().toLowerCase();
+  if(DATA.agentes[norm]) return norm;
+  // Si el nombre ya existe en los datos cargados (por ejemplo, viene del set de
+  // la semana importada de Excel), se reutiliza esa misma clave para conservar
+  // su historial y estadísticas existentes en vez de crear un registro vacío.
+  const existing = Object.keys(DATA.agentes).find(k => DATA.agentes[k].nombre.trim().toLowerCase() === norm);
+  return existing || norm;
+}
+
+async function fetchMiPerfilConsultor(authUserId){
+  const { data, error } = await sb
+    .from(CONSULTORES_TABLE)
+    .select(CONSULTORES_SELECT)
+    .eq('auth_user_id', authUserId)
+    .maybeSingle();
+  if(error){
+    console.error('No se pudo leer "Información de consultores" para este usuario:', error);
+    return null;
+  }
+  return data;
+}
+
+async function fetchTodosLosConsultores(){
+  const { data, error } = await sb
+    .from(CONSULTORES_TABLE)
+    .select(CONSULTORES_SELECT);
+  if(error){
+    console.error('No se pudo leer "Información de consultores":', error);
+    return [];
+  }
+  return data || [];
+}
+
+function registrarConsultoresEnDatos(filas){
+  const keys = [];
+  filas.forEach(fila=>{
+    const nombreReal = fila['nombre y apellido'] || fila.auth_user_id;
+    const key = keyForConsultorNombre(nombreReal);
+    if(!DATA.agentes[key]){
+      DATA.agentes[key] = blankAgentRecord(nombreReal, fila['Equipo'] || '');
+    }
+    DATA.agentes[key].rol = fila['Rol'] || null;
+    DATA.agentes[key].auth_user_id = fila.auth_user_id;
+    keys.push(key);
+  });
+  return keys;
+}
+
+async function loadConsultoresRoster(session){
+  if(!session?.user?.id) return;
+  if(rosterCargadoParaUserId === session.user.id) return; // ya cargado para este usuario
+  rosterCargadoParaUserId = session.user.id;
+
+  const miPerfil = await fetchMiPerfilConsultor(session.user.id);
+  currentConsultorProfile = miPerfil;
+  esSupervisor = miPerfil?.['Rol'] === 'Supervisor';
+
+  // Roster COMPLETO (los 4 equipos), sin restringir por rol: todos deben ver
+  // el panorama general en "Por grupo"/"General de Piloto 5".
+  const todos = await fetchTodosLosConsultores();
+  const filasParaGrupos = todos.length ? todos : (miPerfil ? [miPerfil] : []);
+
+  // Roster RESTRINGIDO, solo para "Individual":
+  // SUPERVISOR: puede elegir a cualquier consultor.
+  // CONSULTOR / DIVISIÓN 2B: solo su propia fila (determinada por auth_user_id).
+  const filasParaIndividual = esSupervisor
+    ? filasParaGrupos
+    : (miPerfil ? [miPerfil] : []);
+
+  ALL_AGENT_KEYS.length = 0;
+  ALL_AGENT_KEYS.push(...registrarConsultoresEnDatos(filasParaGrupos));
+  ALL_AGENT_KEYS.sort((a,b)=> DATA.agentes[a].nombre.localeCompare(DATA.agentes[b].nombre,'es'));
+
+  AGENT_KEYS.length = 0;
+  AGENT_KEYS.push(...registrarConsultoresEnDatos(filasParaIndividual));
+  AGENT_KEYS.sort((a,b)=> DATA.agentes[a].nombre.localeCompare(DATA.agentes[b].nombre,'es'));
+
+  if(!AGENT_KEYS.length){
+    // El usuario está autenticado en Supabase pero no tiene fila en
+    // "Información de consultores" todavía: se muestra su correo como
+    // resguardo para que la interfaz no quede vacía ni se rompa.
+    const fallbackNombre = session.user.email || 'Usuario sin perfil';
+    const key = keyForConsultorNombre(fallbackNombre);
+    if(!DATA.agentes[key]) DATA.agentes[key] = blankAgentRecord(fallbackNombre, '');
+    AGENT_KEYS.push(key);
+  }
+  if(!ALL_AGENT_KEYS.length){
+    ALL_AGENT_KEYS.push(...AGENT_KEYS);
+  }
+
+  // El <select> NO se elimina (sigue siendo el mismo menú); simplemente se
+  // deshabilita para Consultor/División 2B, que solo tienen su propio nombre
+  // como única opción. Esto es solo reflejo visual: la seguridad real la da RLS.
+  const sel = document.getElementById('agent-select');
+  if(sel) sel.disabled = !esSupervisor;
+  const agentBtn = document.getElementById('agent-select-btn');
+  if(agentBtn) agentBtn.disabled = !esSupervisor;
+  if(!esSupervisor) closeAgentDropdown();
+
+  // "Crear nuevo usuario", "Editar usuario" y "Eliminar usuario" quedan
+  // visibles solo para Supervisor. Igual que con el <select> de arriba, esto
+  // es solo reflejo visual en la interfaz — la protección real de quién
+  // puede de verdad crear/editar/eliminar usuarios debe reforzarse también
+  // del lado del servidor (ya lo hacen create-user/edit-user).
+  const crearUsuarioBtn = document.getElementById('crear-usuario-btn');
+  const editarUsuarioBtn = document.getElementById('editar-usuario-btn');
+  const eliminarUsuarioBtn = document.getElementById('eliminar-usuario-btn');
+  const descargarReporteBtn = document.getElementById('descargar-reporte-btn');
+  if(crearUsuarioBtn) crearUsuarioBtn.style.display = esSupervisor ? '' : 'none';
+  if(editarUsuarioBtn) editarUsuarioBtn.style.display = esSupervisor ? '' : 'none';
+  if(eliminarUsuarioBtn) eliminarUsuarioBtn.style.display = esSupervisor ? '' : 'none';
+  if(descargarReporteBtn) descargarReporteBtn.style.display = esSupervisor ? '' : 'none';
+
+  // "Luna" también queda visible solo para Supervisor. La Edge Function ya
+  // filtra los datos según el permiso real de quien pregunte, pero además
+  // Consultor/División 2B ni siquiera deben ver la opción de usarla.
+  const lunaBtn = document.getElementById('nav-luna-btn');
+  if(lunaBtn){
+    lunaBtn.style.display = esSupervisor ? '' : 'none';
+    if(!esSupervisor && lunaBtn.classList.contains('active')){
+      lunaBtn.classList.remove('active');
+      document.getElementById('view-luna').classList.remove('active');
+      document.querySelector('.tab-btn[data-view="total"]').classList.add('active');
+      document.getElementById('view-total').classList.add('active');
+    }
+  }
+
+  const sessionLabel = document.getElementById('session-email');
+  const sessionRol = document.getElementById('session-rol');
+  if(sessionLabel){
+    sessionLabel.textContent = miPerfil
+      ? miPerfil['nombre y apellido']
+      : `${session.user.email || ''} — perfil no encontrado en "Información de consultores" (revisa auth_user_id y las políticas RLS)`;
+  }
+  if(sessionRol){
+    sessionRol.textContent = miPerfil ? (miPerfil['Rol'] || '') : '';
+  }
+  actualizarSaludoLuna(miPerfil ? miPerfil['nombre y apellido'] : '');
+  poblarSelectorSemanaLuna();
+
+  renderAll();
+  renderIngresoForm(AGENT_KEYS[0]);
+}
+
+function actualizarSaludoLuna(nombreCompleto){
+  const el = document.getElementById('luna-saludo-inicial');
+  if(!el) return;
+  const primerNombre = (nombreCompleto || '').trim().split(/\s+/)[0];
+  el.textContent = primerNombre
+    ? `Hola ${primerNombre}, qué gusto verte de nuevo, ¿cómo te ayudo hoy?`
+    : 'Hola, ¿cómo te ayudo hoy?';
+}
+
+function poblarSelectorSemanaLuna(){
+  const select = document.getElementById('luna-semana-select');
+  if(!select || select.dataset.listo) return; // no reconstruir si ya se llenó antes
+  const semanas = listaUltimasSemanasReporte(12);
+  window.__lunaSemanas = semanas;
+  select.innerHTML = semanas.map((s,i)=>
+    `<option value="${i}">${i===0 ? 'Semana actual — ' : ''}${formatDateEs(s.from)} al ${formatDateEs(s.to)}</option>`
+  ).join('');
+  select.dataset.listo = '1';
+}
+
+async function guardarNuevoUsuario(){
+  const nombre = document.getElementById('nu-nombre').value.trim();
+  const correo = document.getElementById('nu-correo').value.trim();
+  const password = document.getElementById('nu-password').value;
+  const rol = document.getElementById('nu-rol').value;
+  const equipo = document.getElementById('nu-equipo').value;
+  const statusEl = document.getElementById('crear-usuario-status');
+  const submitBtn = document.querySelector('#crear-usuario-form button[type="submit"]');
+
+  if(!nombre || !correo || !password || !equipo){
+    statusEl.textContent = 'Completa todos los campos.';
+    statusEl.classList.add('err');
+    return;
+  }
+
+  statusEl.classList.remove('err');
+  statusEl.textContent = 'Creando usuario en Supabase…';
+  if(submitBtn) submitBtn.disabled = true;
+
+  try{
+    // Solo refresca el token si de verdad está por vencer (ver
+    // asegurarSesionFresca) — forzarlo siempre podía chocar con el
+    // refresco automático de Supabase y romper la sesión justo antes
+    // de llamar a la función.
+    const session = await asegurarSesionFresca();
+    if(!session?.access_token){
+      throw new Error('Tu sesión expiró. Cierra sesión y vuelve a iniciar para poder crear usuarios.');
+    }
+
+    // Llama a la Edge Function "create-user" (ver archivo aparte) que usa la
+    // service_role key en el servidor para crear el usuario en Authentication
+    // y además su registro en "Información de consultores".
+    // Nunca se debe poner la service_role key aquí en el navegador.
+    const resp = await fetch(`${SUPABASE_URL}/functions/v1/create-user`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'apikey': SUPABASE_ANON_KEY,
+        'Authorization': `Bearer ${session.access_token}`
+      },
+      body: JSON.stringify({ nombre, correo, password, rol, equipo })
+    });
+    const result = await resp.json().catch(()=> ({}));
+    if(!resp.ok || result?.error){
+      throw new Error(result?.error || 'No se pudo crear el usuario en Supabase.');
+    }
+
+    if(!Array.isArray(DATA.usuarios)) DATA.usuarios = [];
+    DATA.usuarios.push({
+      id: result?.user?.id || result?.auth_user_id || ('usr_'+Date.now().toString(36)+Math.random().toString(36).slice(2,7)),
+      nombre, correo, rol, equipo
+    });
+    try{
+      await window.storage.set('piloto5-usuarios', JSON.stringify(DATA.usuarios), false);
+    }catch(e){
+      // sin almacenamiento persistente disponible; el usuario queda listado solo en esta sesión
+    }
+
+    // Agrega el nuevo usuario como agente (agrupado por su Equipo) para que
+    // aparezca en "Individual" y en "Eliminar usuario"
+    const agentKey = generateAgentKeyFromNombre(nombre);
+    const agentRecord = blankAgentRecord(nombre, equipo);
+    agentRecord.auth_user_id = result?.user?.id || result?.auth_user_id || null;
+    agentRecord.rol = rol || null;
+    DATA.agentes[agentKey] = agentRecord;
+    insertAgentKeySorted(agentKey);
+    renderAll();
+
+    const createdAgentes = await getCreatedAgentesList();
+    createdAgentes.push({ key: agentKey, data: agentRecord });
+    await persistCreatedAgentesList(createdAgentes);
+
+    statusEl.textContent = 'Usuario creado en Supabase ✓';
+    setTimeout(closeCrearUsuarioModal, 900);
+  }catch(err){
+    statusEl.textContent = err.message || 'No se pudo crear el usuario.';
+    statusEl.classList.add('err');
+  }finally{
+    if(submitBtn) submitBtn.disabled = false;
+  }
+}
+
+async function loadSavedUsuarios(){
+  try{
+    const res = await window.storage.get('piloto5-usuarios', false);
+    if(res && res.value) DATA.usuarios = JSON.parse(res.value);
+  }catch(e){
+    // sin almacenamiento persistente disponible
+  }
+}
+
+document.getElementById('crear-usuario-btn').addEventListener('click', openCrearUsuarioModal);
+
+// ---------- Eliminar usuario ----------
+function openEliminarUsuarioModal(){
+  closeEliminarUsuarioModal();
+  const overlay = document.createElement('div');
+  overlay.className = 'confirm-overlay';
+  const options = AGENT_KEYS.map(k=>`<option value="${k}">${escapeHtml(DATA.agentes[k].nombre)}</option>`).join('');
+  overlay.innerHTML = `
+    <div class="user-modal">
+      <h3 class="user-modal-title">Eliminar usuario</h3>
+      <div class="form-field-modal">
+        <label for="eliminar-usuario-select">Selecciona un usuario</label>
+        <select id="eliminar-usuario-select">
+          <option value="" selected disabled>Elige un nombre…</option>
+          ${options}
+        </select>
+      </div>
+      <div class="user-modal-actions">
+        <button type="button" class="btn-mini" id="eliminar-usuario-cancelar">Cancelar</button>
+      </div>
+    </div>
+  `;
+  document.body.appendChild(overlay);
+  window.__eliminarUsuarioOverlay = overlay;
+
+  overlay.addEventListener('click', (e)=>{ if(e.target===overlay) closeEliminarUsuarioModal(); });
+  document.getElementById('eliminar-usuario-cancelar').addEventListener('click', closeEliminarUsuarioModal);
+  document.getElementById('eliminar-usuario-select').addEventListener('change', (e)=>{
+    const key = e.target.value;
+    if(!key || !DATA.agentes[key]) return;
+    closeEliminarUsuarioModal();
+    showConfirmModal('¿Estás Seguro que quiere borrar este CMC?', ()=> eliminarUsuarioAgente(key));
+  });
+}
+
+function closeEliminarUsuarioModal(){
+  if(window.__eliminarUsuarioOverlay){ window.__eliminarUsuarioOverlay.remove(); window.__eliminarUsuarioOverlay = null; }
+}
+
+// ---------- Editar usuario ----------
+function openEditarUsuarioModal(){
+  closeEditarUsuarioModal();
+  const overlay = document.createElement('div');
+  overlay.className = 'confirm-overlay';
+  const options = AGENT_KEYS.map(k=>`<option value="${k}">${escapeHtml(DATA.agentes[k].nombre)}</option>`).join('');
+  overlay.innerHTML = `
+    <div class="user-modal">
+      <button type="button" class="user-modal-close" id="editar-usuario-cerrar-x" aria-label="Cerrar">
+        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+      </button>
+      <h3 class="user-modal-title">Editar usuario</h3>
+      <div class="form-field-modal">
+        <label for="editar-usuario-select">Selecciona un usuario</label>
+        <select id="editar-usuario-select">
+          <option value="" selected disabled>Elige un nombre…</option>
+          ${options}
+        </select>
+      </div>
+      <div class="user-modal-actions">
+        <button type="button" class="btn-mini" id="editar-usuario-cancelar">Cancelar</button>
+      </div>
+    </div>
+  `;
+  document.body.appendChild(overlay);
+  window.__editarUsuarioOverlay = overlay;
+
+  overlay.addEventListener('click', (e)=>{ if(e.target===overlay) closeEditarUsuarioModal(); });
+  document.getElementById('editar-usuario-cerrar-x').addEventListener('click', closeEditarUsuarioModal);
+  document.getElementById('editar-usuario-cancelar').addEventListener('click', closeEditarUsuarioModal);
+  document.getElementById('editar-usuario-select').addEventListener('change', (e)=>{
+    const key = e.target.value;
+    if(!key || !DATA.agentes[key]) return;
+    closeEditarUsuarioModal();
+    openEditarUsuarioFormModal(key);
+  });
+}
+
+function closeEditarUsuarioModal(){
+  if(window.__editarUsuarioOverlay){ window.__editarUsuarioOverlay.remove(); window.__editarUsuarioOverlay = null; }
+}
+
+function openEditarUsuarioFormModal(key){
+  closeEditarUsuarioFormModal();
+  const a = DATA.agentes[key];
+  if(!a) return;
+
+  const overlay = document.createElement('div');
+  overlay.className = 'confirm-overlay';
+  overlay.innerHTML = `
+    <div class="user-modal">
+      <button type="button" class="user-modal-close" id="editar-usuario-form-cerrar-x" aria-label="Cerrar">
+        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+      </button>
+      <h3 class="user-modal-title">Editar a ${escapeHtml(a.nombre)}</h3>
+      <form id="editar-usuario-form">
+        <div class="form-field-modal">
+          <label for="eu-nombre">Nombre de usuario</label>
+          <input type="text" id="eu-nombre" value="${escapeHtml(a.nombre)}" required>
+        </div>
+        <div class="form-field-modal">
+          <label for="eu-rol">Rol</label>
+          <select id="eu-rol">
+            <option value="Supervisor">Supervisor</option>
+            <option value="Consultor">Consultor</option>
+            <option value="División 2B">División 2B</option>
+          </select>
+        </div>
+        <div class="form-field-modal">
+          <label for="eu-equipo">Equipo</label>
+          <select id="eu-equipo">
+            <option value="ADMIN">ADMIN</option>
+            <option value="CC5A">CC5A</option>
+            <option value="CC5B">CC5B</option>
+            <option value="CC5D">CC5D</option>
+            <option value="CC5E">CC5E</option>
+          </select>
+        </div>
+        <div class="user-modal-actions">
+          <button type="button" class="btn-mini" id="editar-usuario-form-cancelar">Cancelar</button>
+          <button type="submit" class="btn-primary">Guardar</button>
+        </div>
+        <div class="ingreso-status" id="editar-usuario-status"></div>
+      </form>
+    </div>
+  `;
+  document.body.appendChild(overlay);
+  window.__editarUsuarioFormOverlay = overlay;
+
+  // Preselecciona el Rol y Equipo actuales del consultor.
+  const rolSelect = document.getElementById('eu-rol');
+  if(a.rol) rolSelect.value = a.rol;
+  const equipoSelect = document.getElementById('eu-equipo');
+  if(a.grupo) equipoSelect.value = a.grupo;
+
+  overlay.addEventListener('click', (e)=>{ if(e.target===overlay) closeEditarUsuarioFormModal(); });
+  document.getElementById('editar-usuario-form-cerrar-x').addEventListener('click', closeEditarUsuarioFormModal);
+  document.getElementById('editar-usuario-form-cancelar').addEventListener('click', closeEditarUsuarioFormModal);
+  document.getElementById('editar-usuario-form').addEventListener('submit', (e)=>{
+    e.preventDefault();
+    guardarEdicionUsuario(key);
+  });
+  document.getElementById('eu-nombre').focus();
+}
+
+function closeEditarUsuarioFormModal(){
+  if(window.__editarUsuarioFormOverlay){ window.__editarUsuarioFormOverlay.remove(); window.__editarUsuarioFormOverlay = null; }
+}
+
+async function guardarEdicionUsuario(key){
+  const a = DATA.agentes[key];
+  if(!a || !a.auth_user_id){
+    document.getElementById('editar-usuario-status').textContent = 'Este consultor no tiene auth_user_id vinculado; no se puede editar.';
+    document.getElementById('editar-usuario-status').classList.add('err');
+    return;
+  }
+  const nombre = document.getElementById('eu-nombre').value.trim();
+  const rol = document.getElementById('eu-rol').value;
+  const equipo = document.getElementById('eu-equipo').value;
+  const statusEl = document.getElementById('editar-usuario-status');
+  const submitBtn = document.querySelector('#editar-usuario-form button[type="submit"]');
+
+  if(!nombre){
+    statusEl.textContent = 'El nombre no puede quedar vacío.';
+    statusEl.classList.add('err');
+    return;
+  }
+
+  statusEl.classList.remove('err');
+  statusEl.textContent = 'Guardando en Supabase…';
+  if(submitBtn) submitBtn.disabled = true;
+
+  try{
+    const session = await asegurarSesionFresca();
+    if(!session?.access_token){
+      throw new Error('Tu sesión expiró. Cierra sesión y vuelve a iniciar para poder editar usuarios.');
+    }
+
+    const resp = await fetch(`${SUPABASE_URL}/functions/v1/edit-user`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'apikey': SUPABASE_ANON_KEY,
+        'Authorization': `Bearer ${session.access_token}`,
+      },
+      body: JSON.stringify({ auth_user_id_objetivo: a.auth_user_id, nombre, rol, equipo }),
+    });
+    const result = await resp.json().catch(()=> ({}));
+    if(!resp.ok || result?.error){
+      throw new Error(result?.error || 'No se pudo editar el usuario en Supabase.');
+    }
+
+    // Refleja el cambio de inmediato en los datos locales del roster; el
+    // recalculo real de "Por grupo"/"General" siempre sale de Supabase
+    // (totales_por_equipo), así que en cuanto se guarde, ese consultor ya
+    // suma para su nuevo Equipo.
+    a.nombre = nombre;
+    a.rol = rol;
+    a.grupo = equipo;
+    renderAll();
+    anunciarCambioParaTotales();
+
+    statusEl.textContent = 'Usuario actualizado ✓';
+    setTimeout(closeEditarUsuarioFormModal, 900);
+  }catch(err){
+    statusEl.textContent = err.message || 'No se pudo editar el usuario.';
+    statusEl.classList.add('err');
+  }finally{
+    if(submitBtn) submitBtn.disabled = false;
+  }
+}
+
+document.getElementById('editar-usuario-btn').addEventListener('click', openEditarUsuarioModal);
+
+async function getDeletedAgentesList(){
+  try{
+    const res = await window.storage.get('piloto5-agentes-eliminados', false);
+    if(res && res.value){
+      const parsed = JSON.parse(res.value);
+      if(Array.isArray(parsed)) return parsed;
+    }
+  }catch(e){
+    // sin almacenamiento persistente disponible o clave inexistente
+  }
+  return [];
+}
+
+async function persistDeletedAgentesList(list){
+  try{
+    await window.storage.set('piloto5-agentes-eliminados', JSON.stringify(list), false);
+  }catch(e){
+    // sin almacenamiento persistente disponible; el usuario queda eliminado solo en esta sesión
+  }
+}
+
+async function eliminarUsuarioAgente(key){
+  if(!DATA.agentes[key]) return;
+  delete DATA.agentes[key];
+  const idx = AGENT_KEYS.indexOf(key);
+  if(idx !== -1) AGENT_KEYS.splice(idx,1);
+  const idxAll = ALL_AGENT_KEYS.indexOf(key);
+  if(idxAll !== -1) ALL_AGENT_KEYS.splice(idxAll,1);
+  renderAll();
+
+  const deleted = await getDeletedAgentesList();
+  if(!deleted.includes(key)) deleted.push(key);
+  await persistDeletedAgentesList(deleted);
+}
+
+async function loadDeletedAgentes(){
+  const deleted = await getDeletedAgentesList();
+  deleted.forEach(key=>{
+    if(DATA.agentes[key]) delete DATA.agentes[key];
+    const idx = AGENT_KEYS.indexOf(key);
+    if(idx !== -1) AGENT_KEYS.splice(idx,1);
+    const idxAll = ALL_AGENT_KEYS.indexOf(key);
+    if(idxAll !== -1) ALL_AGENT_KEYS.splice(idxAll,1);
+  });
+}
+
+document.getElementById('eliminar-usuario-btn').addEventListener('click', openEliminarUsuarioModal);
+
+async function modificarVso(key, vsoId, newVal){
+  await asegurarSesionFresca();
+  const { error } = await actualizarVsoFila(vsoId, newVal);
+  if(error){
+    showIngresoStatus(`No se pudo actualizar la orden en Supabase: ${error.message}`, true);
+    return;
+  }
+  await renderOrdenesTable(key);
+  await renderAgentDetail(key);
+  await renderIngresoForm(key);
+  showIngresoStatus('Orden actualizada ✓');
+  anunciarCambioParaTotales();
+}
+
+async function eliminarVso(key, vsoId){
+  await asegurarSesionFresca();
+  const { error } = await eliminarVsoFila(vsoId);
+  if(error){
+    showIngresoStatus(`No se pudo eliminar la orden en Supabase: ${error.message}`, true);
+    return;
+  }
+  await renderOrdenesTable(key);
+  await renderAgentDetail(key);
+  await renderIngresoForm(key);
+  showIngresoStatus('Orden eliminada ✓');
+  anunciarCambioParaTotales();
+}
+
+async function guardarNotaVso(key, vsoId, nota){
+  await asegurarSesionFresca();
+  const { error } = await actualizarNotaVsoFila(vsoId, nota);
+  if(error){
+    showIngresoStatus(`No se pudo guardar la nota en Supabase: ${error.message}`, true);
+    return;
+  }
+  await renderOrdenesTable(key);
+  showIngresoStatus('Nota guardada ✓');
+}
+
+async function quitarNotaVso(key, vsoId){
+  await asegurarSesionFresca();
+  const { error } = await actualizarNotaVsoFila(vsoId, null);
+  if(error){
+    showIngresoStatus(`No se pudo quitar la nota en Supabase: ${error.message}`, true);
+    return;
+  }
+  await renderOrdenesTable(key);
+  showIngresoStatus('Nota eliminada ✓');
+}
+
+document.getElementById('agent-select').addEventListener('change', e=>{
+  renderAgentDetail(e.target.value);
+  refreshDetalleTables(e.target.value);
+  if(document.getElementById('subview-ingreso').classList.contains('active')){
+    renderIngresoForm(e.target.value);
+  }
+});
+
+// ---------- Filtro de fecha ----------
+function formatDateEs(dateStr){
+  const d = new Date(dateStr+'T00:00:00');
+  return d.toLocaleDateString('es-EC', {day:'2-digit', month:'long', year:'numeric'});
+}
+function toDateInputValue(d){
+  return toLocalISO(d);
+}
+
+let dateFilterState = {mode:'hoy', from:null, to:null};
+
+function getSelectedDateRange(){
+  const today = new Date();
+  if(dateFilterState.mode === 'hoy'){
+    const t = toDateInputValue(today);
+    return {from:t, to:t};
+  }
+  if(dateFilterState.mode === 'ayer'){
+    const y = new Date(today); y.setDate(y.getDate()-1);
+    const ys = toDateInputValue(y);
+    return {from:ys, to:ys};
+  }
+  if(dateFilterState.mode === 'personalizado' && dateFilterState.from && dateFilterState.to){
+    return {from:dateFilterState.from, to:dateFilterState.to};
+  }
+  return null;
+}
+
+function updateDateLabel(){
+  const label = document.getElementById('date-label');
+  const today = new Date();
+  if(dateFilterState.mode === 'hoy'){
+    label.textContent = `Mostrando: hoy, ${formatDateEs(toDateInputValue(today))}`;
+  } else if(dateFilterState.mode === 'ayer'){
+    const y = new Date(today); y.setDate(y.getDate()-1);
+    label.textContent = `Mostrando: ayer, ${formatDateEs(toDateInputValue(y))}`;
+  } else if(dateFilterState.mode === 'personalizado'){
+    if(dateFilterState.from && dateFilterState.to){
+      label.textContent = dateFilterState.from === dateFilterState.to
+        ? `Mostrando: ${formatDateEs(dateFilterState.from)}`
+        : `Mostrando: ${formatDateEs(dateFilterState.from)} – ${formatDateEs(dateFilterState.to)}`;
+    } else {
+      label.textContent = 'Selecciona un rango de fechas';
+    }
+  }
+}
+
+document.getElementById('date-filter').addEventListener('mousedown', ()=>{
+  // Si ya estaba en "Personalizar", volver a elegir esa misma opción en un
+  // <select> nativo NO dispara "change" (el navegador solo avisa cuando el
+  // valor realmente cambia) — por eso antes había que pasar por "Hoy"/"Ayer"
+  // primero. Reabrimos el calendario apenas se toca el menú, sin esperar a
+  // que se seleccione nada.
+  if(dateFilterState.mode === 'personalizado'){
+    const picker = document.getElementById('date-range-picker');
+    if(!picker.classList.contains('active')){
+      picker.classList.add('active');
+      renderCalendar();
+    }
+  }
+});
+document.getElementById('date-filter').addEventListener('change', e=>{
+  dateFilterState.mode = e.target.value;
+  const picker = document.getElementById('date-range-picker');
+  const label = document.getElementById('date-label');
+  label.classList.toggle('editable', dateFilterState.mode === 'personalizado');
+  picker.classList.toggle('active', dateFilterState.mode === 'personalizado');
+  if(dateFilterState.mode === 'personalizado'){
+    renderCalendar();
+  } else {
+    updateDateLabel();
+    renderAgentDetail(currentAgentKey());
+    refreshDetalleTables(currentAgentKey());
+  }
+});
+
+document.getElementById('date-label').addEventListener('click', ()=>{
+  if(dateFilterState.mode !== 'personalizado') return;
+  const picker = document.getElementById('date-range-picker');
+  const willOpen = !picker.classList.contains('active');
+  picker.classList.toggle('active', willOpen);
+  if(willOpen) renderCalendar();
+});
+
+// ---------- Calendario personalizado (reemplaza el <input type="date"> nativo) ----------
+const MONTH_NAMES_ES = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
+let calState = {viewYear:null, viewMonth:null, selStart:null, selEnd:null};
+
+function initCalendar(){
+  const today = new Date();
+  calState.viewYear = today.getFullYear();
+  calState.viewMonth = today.getMonth();
+  renderCalendar();
+}
+
+function renderCalendar(){
+  const {viewYear, viewMonth} = calState;
+  document.getElementById('cal-month-label').textContent = `${MONTH_NAMES_ES[viewMonth]} ${viewYear}`;
+
+  const grid = document.getElementById('calendar-grid');
+  const firstDay = new Date(viewYear, viewMonth, 1);
+  const startWeekday = firstDay.getDay();
+  const daysInMonth = new Date(viewYear, viewMonth+1, 0).getDate();
+
+  let html = '';
+  for(let i=0;i<startWeekday;i++) html += `<span class="cal-day empty"></span>`;
+  for(let d=1; d<=daysInMonth; d++){
+    const dateStr = `${viewYear}-${String(viewMonth+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+    let cls = 'cal-day';
+    if(calState.selStart===dateStr) cls += ' sel-start';
+    if(calState.selEnd===dateStr) cls += ' sel-end';
+    if(calState.selStart && calState.selEnd && dateStr>calState.selStart && dateStr<calState.selEnd) cls += ' in-range';
+    html += `<button type="button" class="${cls}" data-date="${dateStr}">${d}</button>`;
+  }
+  grid.innerHTML = html;
+
+  grid.querySelectorAll('.cal-day:not(.empty)').forEach(btn=>{
+    btn.addEventListener('click', ()=> pickCalendarDate(btn.dataset.date));
+  });
+
+  updateCalendarRangeLabel();
+}
+
+function pickCalendarDate(dateStr){
+  if(!calState.selStart || calState.selEnd){
+    calState.selStart = dateStr;
+    calState.selEnd = null;
+  } else if(dateStr < calState.selStart){
+    calState.selEnd = calState.selStart;
+    calState.selStart = dateStr;
+  } else {
+    calState.selEnd = dateStr;
+  }
+  renderCalendar();
+}
+
+function updateCalendarRangeLabel(){
+  const el = document.getElementById('calendar-range-label');
+  if(calState.selStart && calState.selEnd){
+    el.textContent = calState.selStart === calState.selEnd
+      ? formatDateEs(calState.selStart)
+      : `${formatDateEs(calState.selStart)} – ${formatDateEs(calState.selEnd)}`;
+  } else if(calState.selStart){
+    el.textContent = `${formatDateEs(calState.selStart)} (elige el final o aplica para un solo día)`;
+  } else {
+    el.textContent = 'Selecciona una fecha';
+  }
+}
+
+document.getElementById('cal-prev').addEventListener('click', ()=>{
+  calState.viewMonth--;
+  if(calState.viewMonth<0){ calState.viewMonth=11; calState.viewYear--; }
+  renderCalendar();
+});
+document.getElementById('cal-next').addEventListener('click', ()=>{
+  calState.viewMonth++;
+  if(calState.viewMonth>11){ calState.viewMonth=0; calState.viewYear++; }
+  renderCalendar();
+});
+
+document.getElementById('date-range-apply').addEventListener('click', ()=>{
+  if(!calState.selStart) return;
+  dateFilterState.from = calState.selStart;
+  dateFilterState.to = calState.selEnd || calState.selStart;
+  updateDateLabel();
+  document.getElementById('date-range-picker').classList.remove('active');
+  renderAgentDetail(currentAgentKey());
+  refreshDetalleTables(currentAgentKey());
+});
+
+updateDateLabel();
+
+// ---------- Ingreso de datos ----------
+function computeAgentDerived(a){
+  a.llamadas_totales = (a.llamadas_entrantes||0) + (a.llamadas_salientes||0);
+  a.miembros_diferencia = (a.miembros_final||0) - (a.miembros_inicio||0);
+  a.programas_pendientes = (a.programas_debian_iniciar||0) - (a.programas_iniciados||0);
+  a.pct_asistidas = a.citas_confirmadas ? a.citas_asistidas / a.citas_confirmadas : null;
+  a.pct_llamadas_tiempo = a.citas_confirmadas ? a.citas_llamadas_a_tiempo / a.citas_confirmadas : null;
+  a.pct_efectividad_citas = a.citas_totales ? a.citas_completadas / a.citas_totales : null;
+  a.pct_pp_iniciados = a.programas_debian_iniciar ? a.programas_iniciados / a.programas_debian_iniciar : null;
+}
+
+// Campos "de flujo" (se suman) que alimentan Total/Por grupo, ya unificados
+// entre "Registro diario" (Consultor/Supervisor) y "Registro diario Div 2B"
+// (pp_vendidos se suma dentro de "programas_vendidos"; los campos exclusivos
+// de citas/miembros/programas iniciados simplemente no aplican a Div 2B).
+const GROUP_SUM_FIELDS = ['llamadas_entrantes','llamadas_salientes','llamadas_totales','epm','programas_vendidos','programas_iniciados','citas_confirmadas','citas_asistidas','citas_llamadas_tiempo','citas_totales_dia','citas_totales_asistidas','episodios_observados','videos_enviados','ventas'];
+
+// Trae y unifica, para UN agente, sus métricas reales de la semana actual:
+// "Registro diario" o "Registro diario Div 2B" (según su Rol) + "VSO".
+// Ahora se obtiene con una sola llamada a la función de Supabase
+// "totales_por_equipo" (ver SQL aparte): calcula los totales ya sumados por
+// equipo del lado del servidor (SECURITY DEFINER), así que cualquier usuario
+// autenticado puede leerlos sin que eso abra el acceso a las filas
+// individuales de "Registro diario" / "Registro diario Div 2B" / "VSO".
+async function recalcGroupsAndTotal(){
+  const range = getCurrentWeekRange();
+  const groups = {};
+  const counts = {};
+
+  const { data, error } = await sb.rpc('totales_por_equipo', {
+    fecha_desde: range.from,
+    fecha_hasta: range.to,
+  });
+
+  if(error){
+    console.error('No se pudo calcular totales_por_equipo:', error?.message || error?.hint || error?.details || JSON.stringify(error));
+    DATA.grupos = {};
+    DATA.grupos_count = {};
+    const totalVacio = {}; GROUP_SUM_FIELDS.forEach(f=> totalVacio[f]=0);
+    totalVacio.miembros_inicio = 0; totalVacio.miembros_final = 0; totalVacio.miembros_diferencia = 0;
+    DATA.total = totalVacio;
+    return;
+  }
+
+  (data||[]).forEach(row=>{
+    const g = row.equipo;
+    if(!g) return;
+    const d = {};
+    GROUP_SUM_FIELDS.forEach(f=> d[f] = Number(row[f])||0);
+    d.miembros_inicio = Number(row.miembros_inicio)||0;
+    d.miembros_final = Number(row.miembros_final)||0;
+    d.miembros_diferencia = d.miembros_final - d.miembros_inicio;
+    d.pct_asistidas = d.citas_confirmadas ? d.citas_asistidas/d.citas_confirmadas : null;
+    d.pct_llamadas_tiempo = d.citas_confirmadas ? d.citas_llamadas_tiempo/d.citas_confirmadas : null;
+    d.pct_efectividad_citas = d.citas_totales_dia ? d.citas_totales_asistidas/d.citas_totales_dia : null;
+    groups[g] = d;
+    counts[g] = Number(row.cantidad_agentes)||0;
+  });
+
+  DATA.grupos = groups;
+  DATA.grupos_count = counts;
+
+  const total = {}; GROUP_SUM_FIELDS.forEach(f=> total[f]=0);
+  total.miembros_inicio = 0; total.miembros_final = 0;
+  Object.values(groups).forEach(d=>{
+    GROUP_SUM_FIELDS.forEach(f=> total[f]+= (d[f]||0));
+    total.miembros_inicio += d.miembros_inicio||0;
+    total.miembros_final += d.miembros_final||0;
+  });
+  total.miembros_diferencia = total.miembros_final - total.miembros_inicio;
+  total.pct_asistidas = total.citas_confirmadas ? total.citas_asistidas/total.citas_confirmadas : null;
+  total.pct_llamadas_tiempo = total.citas_confirmadas ? total.citas_llamadas_tiempo/total.citas_confirmadas : null;
+  total.pct_efectividad_citas = total.citas_totales_dia ? total.citas_totales_asistidas/total.citas_totales_dia : null;
+  DATA.total = total;
+}
+
+async function renderAll(){
+  await recalcGroupsAndTotal();
+  renderTotal();
+  renderGrupos();
+  const sel = document.getElementById('agent-select');
+  const prevSelect = sel.value;
+  fillAgentSelect();
+  // Si el valor anterior ya no existe en la nueva lista (por ejemplo, tras
+  // cargar el roster real de Supabase), se cae al primer agente disponible
+  // en vez de dejar el <select> sin ninguna opción marcada (viéndose en blanco).
+  sel.value = AGENT_KEYS.includes(prevSelect) ? prevSelect : (AGENT_KEYS[0] || '');
+  const key = sel.value || AGENT_KEYS[0];
+  renderAgentDetail(key);
+  refreshDetalleTables(key);
+}
+
+function showIngresoStatus(msg, isErr){
+  const el = document.getElementById('ingreso-status');
+  el.textContent = msg;
+  el.classList.toggle('err', !!isErr);
+}
+
+async function renderIngresoForm(key){
+  const nameEl = document.getElementById('ingreso-agent-name');
+  const formEl = document.getElementById('ingreso-form');
+  const info = getTargetInfo(key);
+  if(!info){
+    nameEl.textContent = 'Selecciona un agente';
+    formEl.innerHTML = '<div class="ingreso-empty">No hay agentes para editar.</div>';
+    return;
+  }
+  if(!info.authUserId){
+    nameEl.textContent = `${info.nombre} — ${info.grupo}`;
+    formEl.innerHTML = '<div class="ingreso-empty">Este consultor no tiene auth_user_id vinculado en "Información de consultores"; no se puede guardar en Supabase.</div>';
+    return;
+  }
+
+  const fecha = fechaObjetivoIngreso();
+  const tabla = tablaRegistroParaRol(info.rol);
+  const campos = camposRegistroParaRol(info.rol);
+
+  nameEl.textContent = `${info.nombre} — ${info.grupo} · ${formatDateEs(fecha)}`;
+  formEl.innerHTML = '<div class="ingreso-empty">Cargando…</div>';
+
+  const [regRes, vsoRes] = await Promise.all([
+    fetchRegistroDiario(tabla, info.authUserId, fecha),
+    fetchVsoRango(info.authUserId, fecha, fecha),
+  ]);
+  if(regRes.error || vsoRes.error){
+    formEl.innerHTML = `<div class="ingreso-empty">Error de Supabase: ${escapeHtml((regRes.error||vsoRes.error).message)}</div>`;
+    return;
+  }
+
+  const registro = regRes.data;
+  const vsoHoy = vsoRes.data.reduce((s,f)=> s+(Number(f.vso)||0), 0);
+
+  const specialRows = `
+    <div class="ingreso-row ingreso-row-orden">
+      <label for="ingreso-orden">Insertar Orden</label>
+      <input type="number" id="ingreso-orden" class="no-spin" step="0.01" placeholder="0.00" value="">
+      <button type="button" class="btn-sumar" id="ingreso-orden-sumar">Sumar</button>
+    </div>
+    <div class="ingreso-row ingreso-row-vso">
+      <label>Total de VSO diario</label>
+      <div class="ingreso-readonly" id="ingreso-vso-total">${fmtMoney(vsoHoy)}</div>
+    </div>
+  `;
+
+  const fieldRows = campos.map(c=>`
+    <div class="ingreso-row">
+      <label for="ingreso-${c.key}">${c.label}</label>
+      <input type="number" id="ingreso-${c.key}" class="no-spin" name="${c.key}" step="1" value="${registro ? (registro[c.key] ?? 0) : 0}">
+    </div>
+  `).join('');
+
+  formEl.innerHTML = specialRows + fieldRows +
+    `<div class="form-actions"><button type="submit" class="btn-primary">Guardar cambios</button></div>`;
+
+  document.getElementById('ingreso-orden').addEventListener('input', e=>{
+    const extra = parseFloat(e.target.value) || 0;
+    document.getElementById('ingreso-vso-total').textContent = fmtMoney(vsoHoy + extra);
+  });
+  document.getElementById('ingreso-orden-sumar').addEventListener('click', ()=> sumarOrden(key));
+
+  showIngresoStatus('');
+}
+
+async function sumarOrden(key){
+  const info = getTargetInfo(key);
+  if(!info || !info.authUserId) return;
+  const input = document.getElementById('ingreso-orden');
+  const val = parseFloat(input.value) || 0;
+  if(val === 0){
+    showIngresoStatus('Ingresa un valor antes de sumar.', true);
+    return;
+  }
+  const fecha = fechaObjetivoIngreso();
+  showIngresoStatus('Guardando orden en Supabase…');
+  const sesion = await asegurarSesionFresca();
+  const { error } = await crearVsoFila(info.authUserId, fecha, val, info.grupo);
+  if(error){
+    console.error('Fallo al guardar en VSO. auth_user_id enviado:', info.authUserId, '— auth.uid() de la sesión:', sesion?.user?.id, '— error:', error?.message);
+    showIngresoStatus(`No se pudo guardar la orden: ${error.message}`, true);
+    return;
+  }
+  await renderIngresoForm(key);
+  await renderAgentDetail(key);
+  await refreshDetalleTables(key);
+  showIngresoStatus('Orden agregada ✓');
+  anunciarCambioParaTotales();
+}
+
+// Marca visualmente una casilla como "ya guardada": la deja en 0 y le aplica
+// un tinte distinto, sin tocar en absoluto los datos reales en Supabase (esto
+// solo cambia lo que se ve en pantalla). El tinte se quita solo en cuanto el
+// usuario vuelve a escribir en esa misma casilla.
+function marcarCasillaGuardada(input){
+  if(!input) return;
+  input.value = 0;
+  input.classList.add('ingreso-saved');
+  const quitarTinte = ()=>{
+    input.classList.remove('ingreso-saved');
+    input.removeEventListener('input', quitarTinte);
+  };
+  input.addEventListener('input', quitarTinte);
+}
+
+// Después de un "Guardar Cambios" exitoso, en vez de reconstruir todo el
+// formulario (lo cual volvería a mostrar los valores reales ya guardados),
+// solo se resetea visualmente cada casilla a 0 con su tinte, y se refresca
+// el total de VSO del día (dato real) por si se sumó una orden en el mismo
+// envío. Esto es puramente visual/puntual y no afecta la conexión real con
+// Supabase: el guardado ya ocurrió antes de llamar esta función.
+async function resetVisualIngresoTrasGuardar(key, campos, info, fecha){
+  campos.forEach(c=> marcarCasillaGuardada(document.getElementById('ingreso-'+c.key)));
+  marcarCasillaGuardada(document.getElementById('ingreso-orden'));
+  try{
+    const vsoRes = await fetchVsoRango(info.authUserId, fecha, fecha);
+    if(!vsoRes.error){
+      const vsoHoy = vsoRes.data.reduce((s,f)=> s+(Number(f.vso)||0), 0);
+      const vsoEl = document.getElementById('ingreso-vso-total');
+      if(vsoEl) vsoEl.textContent = fmtMoney(vsoHoy);
+    }
+  }catch(e){
+    // Solo afecta el total mostrado; el dato real en Supabase ya quedó guardado.
+  }
+}
+
+async function saveIngresoData(key){
+  const info = getTargetInfo(key);
+  if(!info) return;
+  if(!info.authUserId){
+    showIngresoStatus('Este consultor no tiene auth_user_id vinculado; no se puede guardar.', true);
+    return;
+  }
+  const fecha = fechaObjetivoIngreso();
+  const tabla = tablaRegistroParaRol(info.rol);
+  const campos = camposRegistroParaRol(info.rol);
+
+  const ordenVal = parseFloat(document.getElementById('ingreso-orden').value) || 0;
+  const payload = {};
+  campos.forEach(c=>{
+    const input = document.getElementById('ingreso-'+c.key);
+    const val = parseFloat(input.value);
+    payload[c.key] = isNaN(val) ? 0 : val;
+  });
+
+  showIngresoStatus('Guardando en Supabase…');
+  await asegurarSesionFresca();
+
+  if(ordenVal !== 0){
+    const { error: errVso } = await crearVsoFila(info.authUserId, fecha, ordenVal, info.grupo);
+    if(errVso){
+      showIngresoStatus(`No se pudo guardar la orden: ${errVso.message}`, true);
+      return;
+    }
+  }
+
+  const { error } = await guardarRegistroDiario(tabla, info.authUserId, fecha, payload, info.grupo);
+  if(error){
+    showIngresoStatus(`No se pudo guardar en "${tabla}": ${error.message}`, true);
+    return;
+  }
+
+  await resetVisualIngresoTrasGuardar(key, campos, info, fecha);
+  await renderAgentDetail(key);
+  await refreshDetalleTables(key);
+  showIngresoStatus(ordenVal !== 0 ? 'Datos guardados ✓ — la orden se sumó al VSO diario.' : 'Datos guardados ✓');
+  anunciarCambioParaTotales();
+}
+
+document.getElementById('ingreso-form').addEventListener('submit', e=>{
+  e.preventDefault();
+  saveIngresoData(document.getElementById('agent-select').value);
+});
+
+async function loadSavedIngresoData(){
+  try{
+    const res = await window.storage.get('piloto5-datos', false);
+    if(res && res.value){
+      const saved = JSON.parse(res.value);
+      Object.keys(saved).forEach(k=>{
+        if(DATA.agentes[k]) Object.assign(DATA.agentes[k], saved[k]);
+      });
+      Object.values(DATA.agentes).forEach(a=>{
+        recomputeAgentVentas(a);
+        computeAgentDerived(a);
+      });
+      await recalcGroupsAndTotal();
+    }
+  }catch(e){
+    // sin almacenamiento persistente disponible; se usan los datos originales de esta sesión
+  }
+}
+
+// ---------- Luna (asistente de análisis, conectado a Open_AI) ----------
+function agregarMensajeLuna(tipo, texto, pendiente){
+  const chat = document.getElementById('luna-chat');
+  const div = document.createElement('div');
+  div.className = tipo === 'usuario' ? 'luna-msg luna-msg-usuario' : 'luna-msg luna-msg-luna';
+  if(pendiente) div.classList.add('luna-msg-pendiente');
+  div.textContent = texto;
+  chat.appendChild(div);
+  chat.scrollTop = chat.scrollHeight;
+  return div;
+}
+
+function actualizarMensajeLuna(elemento, texto){
+  elemento.textContent = texto;
+  elemento.classList.remove('luna-msg-pendiente');
+  const chat = document.getElementById('luna-chat');
+  chat.scrollTop = chat.scrollHeight;
+}
+
+document.getElementById('luna-form').addEventListener('submit', async (e)=>{
+  e.preventDefault();
+  const input = document.getElementById('luna-pregunta');
+  const pregunta = input.value.trim();
+  if(!pregunta) return;
+  const statusEl = document.getElementById('luna-status');
+  const btn = document.getElementById('luna-enviar');
+  statusEl.textContent = '';
+  statusEl.classList.remove('err');
+
+  agregarMensajeLuna('usuario', pregunta);
+  input.value = '';
+  btn.disabled = true;
+  const mensajePendiente = agregarMensajeLuna('luna', 'Luna está pensando…', true);
+
+  try{
+    const { data: { session } } = await sb.auth.getSession();
+    if(!session?.access_token){
+      actualizarMensajeLuna(mensajePendiente, 'Tu sesión expiró. Cierra sesión y vuelve a iniciar para hablar con Luna.');
+      return;
+    }
+
+    const semanaIdx = Number(document.getElementById('luna-semana-select').value);
+    const semana = (window.__lunaSemanas || [])[semanaIdx] || getCurrentWeekRange();
+
+    const resp = await fetch(`${SUPABASE_URL}/functions/v1/open-ai`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'apikey': SUPABASE_ANON_KEY,
+        'Authorization': `Bearer ${session.access_token}`,
+      },
+      body: JSON.stringify({ pregunta, rango: { from: semana.from, to: semana.to } }),
+    });
+    const result = await resp.json().catch(()=> ({}));
+
+    if(!resp.ok || result?.error){
+      actualizarMensajeLuna(mensajePendiente, `No se pudo obtener respuesta de Luna: ${result?.error || 'error desconocido'}`);
+      statusEl.textContent = 'Hubo un problema al consultar a Luna.';
+      statusEl.classList.add('err');
+      return;
+    }
+
+    actualizarMensajeLuna(mensajePendiente, result.respuesta || 'Luna no devolvió ninguna respuesta.');
+  }catch(err){
+    actualizarMensajeLuna(mensajePendiente, 'No se pudo conectar con Luna. Revisa tu conexión e intenta de nuevo.');
+  }finally{
+    btn.disabled = false;
+    input.focus();
+  }
+});
+
+// ============================================================================
+// REPORTE SEMANAL (Excel) — solo Supervisor.
+// Replica las 5 hojas de la plantilla real: VSO, PP vendidos, PP Iniciados,
+// Citas Confirmadas y Totales, Miembros Activos. Cada fila usa el NOMBRE
+// real de la persona (no "Supervisor"/"Consultor" genérico), y la cantidad
+// de filas por equipo sale del roster real de Supabase, no de un número fijo.
+// División 2B se agrupa aparte como "División 2", entre CC5E y ADMIN, sin
+// importar cuál sea su Equipo real.
+// ============================================================================
+const NOMBRES_DIAS_REPORTE = ['Viernes','Sabado','Domingo','Lunes','Martes','Miercoles','Jueves'];
+const ORDEN_EQUIPOS_REPORTE = ['CC5A','CC5B','CC5D','CC5E','División 2','ADMIN'];
+
+// Paleta de colores del reporte — sobria y consistente, en vez de un color
+// distinto por cada día (queda más serio y más fácil de leer impreso).
+const REPORTE_COLOR_TITULO   = '1F2937'; // franja de título, azul carbón
+const REPORTE_COLOR_DIA      = '334155'; // encabezado de cada bloque de día
+const REPORTE_COLOR_COLUMNA  = '64748B'; // sub-encabezado de columna dentro del día
+const REPORTE_COLOR_TOTAL_BG = 'F5C177'; // columna de Total, ámbar del tema
+const REPORTE_COLOR_EQUIPO   = 'FDE9C8'; // fila de encabezado de equipo
+const REPORTE_COLOR_BANDA    = 'F8FAFC'; // banda alterna sutil entre personas
+const REPORTE_COLOR_GENERAL  = '1F2937'; // fila de TOTAL GENERAL, mismo tono del título
+const REPORTE_COLOR_BLANCO   = 'FFFFFFFF';
+const REPORTE_BORDE_GRID = { style:'thin', color:{argb:'FFE2E2E2'} };
+
+function argbColor(hex){ return { argb: hex.length===8 ? hex : 'FF'+hex }; }
+function setFillColor(cell, hex){ cell.fill = { type:'pattern', pattern:'solid', fgColor: argbColor(hex) }; }
+function fechaParaDiaIndex(fechaDesde, idx){
+  const d = new Date(fechaDesde+'T00:00:00');
+  d.setDate(d.getDate()+idx);
+  return d.toISOString().slice(0,10);
+}
+
+function listaUltimasSemanasReporte(cantidad){
+  const semanas = [];
+  let ref = todayISO();
+  for(let i=0;i<cantidad;i++){
+    const range = getCurrentWeekRange(ref);
+    semanas.push(range);
+    const d = new Date(range.from+'T00:00:00');
+    d.setDate(d.getDate()-1);
+    ref = d.toISOString().slice(0,10);
+  }
+  return semanas;
+}
+
+async function obtenerRosterParaReporte(){
+  const { data, error } = await sb.from('Información de consultores').select('auth_user_id, "nombre y apellido", "Rol", "Equipo"');
+  if(error) throw new Error('No se pudo leer el roster: '+error.message);
+  const equipos = { CC5A:[], CC5B:[], CC5D:[], CC5E:[], 'División 2':[], ADMIN:[] };
+  (data||[]).forEach(p=>{
+    const nombre = p['nombre y apellido'];
+    const rol = p['Rol'];
+    const equipoReal = p['Equipo'];
+    if(!p.auth_user_id || !nombre) return;
+    if(rol === 'División 2B'){
+      equipos['División 2'].push({ auth_user_id:p.auth_user_id, nombre, rol });
+    } else if(equipos[equipoReal]){
+      equipos[equipoReal].push({ auth_user_id:p.auth_user_id, nombre, rol });
+    }
+  });
+  ['CC5A','CC5B','CC5D','CC5E','ADMIN'].forEach(eq=>{
+    equipos[eq].sort((a,b)=>{
+      if(a.rol===b.rol) return a.nombre.localeCompare(b.nombre,'es');
+      return a.rol === 'Supervisor' ? -1 : 1;
+    });
+  });
+  equipos['División 2'].sort((a,b)=> a.nombre.localeCompare(b.nombre,'es'));
+  return equipos;
+}
+
+function indexarPorPersonaFecha(filas){
+  const idx = {};
+  (filas||[]).forEach(f=>{ idx[f.auth_user_id+'|'+f.fecha] = f; });
+  return idx;
+}
+
+// ---------- Helpers de estilo compartidos por las 5 hojas ----------
+function estiloTitulo(cell, texto){
+  cell.value = texto;
+  setFillColor(cell, REPORTE_COLOR_TITULO);
+  cell.font = { name:'Arial', bold:true, size:22, color:{argb:REPORTE_COLOR_BLANCO} };
+  cell.alignment = { horizontal:'left', vertical:'middle' };
+}
+function estiloDia(cell, texto){
+  cell.value = texto;
+  setFillColor(cell, REPORTE_COLOR_DIA);
+  cell.font = { name:'Arial', bold:true, size:16, color:{argb:REPORTE_COLOR_BLANCO} };
+  cell.alignment = { horizontal:'center', vertical:'middle' };
+}
+function estiloColumna(cell, texto){
+  cell.value = texto;
+  setFillColor(cell, REPORTE_COLOR_COLUMNA);
+  cell.font = { name:'Arial', bold:true, size:11, color:{argb:REPORTE_COLOR_BLANCO} };
+  cell.alignment = { horizontal:'center', vertical:'middle', wrapText:true };
+}
+function estiloTotalHeader(cell, texto){
+  cell.value = texto;
+  setFillColor(cell, REPORTE_COLOR_TOTAL_BG);
+  cell.font = { name:'Arial', bold:true, size:11, color:{argb:'1F2937'} };
+  cell.alignment = { horizontal:'center', vertical:'middle', wrapText:true };
+}
+function estiloEquipo(cell, texto){
+  if(texto!==undefined) cell.value = texto;
+  setFillColor(cell, REPORTE_COLOR_EQUIPO);
+  cell.font = { name:'Arial', bold:true, size:11, color:{argb:'1F2937'} };
+  cell.border = { top:{style:'thin', color:{argb:'D9B98A'}}, bottom:{style:'thin', color:{argb:'D9B98A'}} };
+}
+function estiloGeneral(cell, valor){
+  if(valor!==undefined) cell.value = valor;
+  setFillColor(cell, REPORTE_COLOR_GENERAL);
+  cell.font = { name:'Arial', bold:true, size:11, color:{argb:REPORTE_COLOR_BLANCO} };
+  cell.border = { top:{style:'medium', color:{argb:'1F2937'}} };
+}
+function aplicarBanda(cell, esBanda){
+  if(esBanda) setFillColor(cell, REPORTE_COLOR_BANDA);
+}
+// Aplica Arial 11 como fuente base a toda celda que no tenga ya un tamaño
+// explícito de encabezado (22 = título, 16 = día de la semana), conservando
+// negrita/color que ya se le hayan asignado a esa celda.
+function aplicarFuenteBase(ws, filaFin, colFin){
+  for(let f=1; f<=filaFin; f++){
+    for(let c=1; c<=colFin; c++){
+      const cell = ws.getCell(f,c);
+      const existente = cell.font || {};
+      if(existente.size === 22 || existente.size === 16) continue;
+      cell.font = Object.assign({}, existente, { name:'Arial', size:11 });
+    }
+  }
+}
+// Acumula valores por columna, para poder construir después la fila de
+// TOTAL GENERAL (la suma de esa columna entre TODOS los agentes, de
+// cualquier equipo).
+function crearAcumulador(){
+  const sumas = {};
+  return {
+    sumar(col, val){ sumas[col] = (sumas[col]||0) + (val||0); },
+    obtener(col){ return sumas[col]||0; },
+  };
+}
+function autoFitColumns(ws, minWidth, maxWidth){
+  const widths = {};
+  ws.eachRow({includeEmpty:false}, row=>{
+    row.eachCell({includeEmpty:false}, cell=>{
+      const len = cell.value!=null ? String(cell.value).length : 0;
+      if(!widths[cell.col] || len>widths[cell.col]) widths[cell.col]=len;
+    });
+  });
+  Object.keys(widths).forEach(col=>{
+    ws.getColumn(Number(col)).width = Math.min(Math.max(widths[col]+2, minWidth||8), maxWidth||34);
+  });
+}
+// Aplica una cuadrícula fina y clara a toda la hoja, sin pisar los bordes ya
+// puestos a propósito (como el marco ámbar de los encabezados de equipo).
+function aplicarBordesGrid(ws, filaFin, colFin){
+  for(let f=1; f<=filaFin; f++){
+    for(let c=1; c<=colFin; c++){
+      const cell = ws.getCell(f,c);
+      const b = cell.border || {};
+      cell.border = {
+        top: b.top || REPORTE_BORDE_GRID,
+        left: b.left || REPORTE_BORDE_GRID,
+        bottom: b.bottom || REPORTE_BORDE_GRID,
+        right: b.right || REPORTE_BORDE_GRID,
+      };
+    }
+  }
+}
+function nombreEquipoVisible(equipoNombre){
+  return equipoNombre === 'División 2' ? 'División 2' : equipoNombre;
+}
+
+// ---------- Hoja VSO ----------
+function construirHojaVSO(wb, roster, registroIdx, vsoIdx, fechaDesde, etiquetaSemana){
+  const ws = wb.addWorksheet('VSO');
+  ws.views = [{ state:'frozen', ySplit:3, xSplit:1 }];
+
+  const bloques = [];
+  let col = 2;
+  for(let i=0;i<7;i++){
+    ws.mergeCells(2,col,2,col+3);
+    estiloDia(ws.getCell(2,col), NOMBRES_DIAS_REPORTE[i]);
+    ['EPM','Llamadas Entrantes','Llamadas Salientes','Ventas'].forEach((h,j)=> estiloColumna(ws.getCell(3,col+j), h));
+    bloques.push({dia:i, startCol:col});
+    col += 4;
+  }
+  const totalStart = col;
+  ws.mergeCells(2,totalStart,2,totalStart+4);
+  estiloTotalHeader(ws.getCell(2,totalStart), 'Total de la semana');
+  ['EPM','Llamadas Entrantes','Llamadas Salientes','Llamadas totales','Ventas'].forEach((h,j)=> estiloTotalHeader(ws.getCell(3,totalStart+j), h));
+  const ultimaCol = totalStart+4;
+  ws.mergeCells(1,1,1,ultimaCol);
+  estiloTitulo(ws.getCell(1,1), `VSO — ${etiquetaSemana}`);
+  estiloColumna(ws.getCell(3,1), 'Nombre');
+  estiloDia(ws.getCell(2,1), '');
+
+  const acc = crearAcumulador();
+  let fila = 4;
+  ORDEN_EQUIPOS_REPORTE.forEach(equipoNombre=>{
+    for(let c=1;c<=ultimaCol;c++) estiloEquipo(ws.getCell(fila,c));
+    estiloEquipo(ws.getCell(fila,1), nombreEquipoVisible(equipoNombre));
+    fila++;
+
+    (roster[equipoNombre]||[]).forEach((persona, i)=>{
+      const banda = i%2===1;
+      ws.getCell(fila,1).value = persona.nombre;
+      aplicarBanda(ws.getCell(fila,1), banda);
+      let sEpm=0, sEnt=0, sSal=0, sVentas=0;
+      bloques.forEach(b=>{
+        const fecha = fechaParaDiaIndex(fechaDesde, b.dia);
+        const reg = registroIdx[persona.auth_user_id+'|'+fecha];
+        const vso = vsoIdx[persona.auth_user_id+'|'+fecha];
+        const epm = reg? Number(reg.epm)||0 : 0;
+        const ent = reg? Number(reg.llamadas_entrantes)||0 : 0;
+        const sal = reg? Number(reg.llamadas_salientes)||0 : 0;
+        const ventas = vso? Number(vso.ventas)||0 : 0;
+        [epm,ent,sal].forEach((v,j)=>{ const c=ws.getCell(fila,b.startCol+j); c.value=v; aplicarBanda(c,banda); acc.sumar(b.startCol+j,v); });
+        const vc = ws.getCell(fila,b.startCol+3); vc.value=ventas; vc.numFmt='"$"#,##0.00'; aplicarBanda(vc,banda);
+        acc.sumar(b.startCol+3, ventas);
+        sEpm+=epm; sEnt+=ent; sSal+=sal; sVentas+=ventas;
+      });
+      [sEpm,sEnt,sSal,sEnt+sSal].forEach((v,j)=>{ const c=ws.getCell(fila,totalStart+j); c.value=v; c.font={bold:true}; setFillColor(c,'FFF3D6'); });
+      const tv = ws.getCell(fila,totalStart+4); tv.value=sVentas; tv.numFmt='"$"#,##0.00'; tv.font={bold:true}; setFillColor(tv,'FFF3D6');
+      fila++;
+    });
+  });
+
+  // ---- TOTAL GENERAL: suma de cada columna de cada día, entre todos ----
+  estiloGeneral(ws.getCell(fila,1), 'TOTAL GENERAL');
+  let gEpm=0, gEnt=0, gSal=0, gVentas=0;
+  bloques.forEach(b=>{
+    const epm=acc.obtener(b.startCol), ent=acc.obtener(b.startCol+1), sal=acc.obtener(b.startCol+2), ventas=acc.obtener(b.startCol+3);
+    [epm,ent,sal].forEach((v,j)=> estiloGeneral(ws.getCell(fila,b.startCol+j), v));
+    const vc = ws.getCell(fila,b.startCol+3); estiloGeneral(vc, ventas); vc.numFmt='"$"#,##0.00';
+    gEpm+=epm; gEnt+=ent; gSal+=sal; gVentas+=ventas;
+  });
+  [gEpm,gEnt,gSal,gEnt+gSal].forEach((v,j)=> estiloGeneral(ws.getCell(fila,totalStart+j), v));
+  const gv = ws.getCell(fila,totalStart+4); estiloGeneral(gv, gVentas); gv.numFmt='"$"#,##0.00';
+  fila++;
+
+  aplicarBordesGrid(ws, fila-1, ultimaCol);
+  aplicarFuenteBase(ws, fila-1, ultimaCol);
+  autoFitColumns(ws, 8, 20);
+  ws.getColumn(1).width = 26;
+  return ws;
+}
+
+// ---------- Hoja PP vendidos ----------
+function construirHojaPPVendidos(wb, roster, registroIdx, fechaDesde, etiquetaSemana){
+  const ws = wb.addWorksheet('PP vendidos');
+  ws.views = [{ state:'frozen', ySplit:3, xSplit:1 }];
+
+  ws.mergeCells(1,1,1,9);
+  estiloTitulo(ws.getCell(1,1), `Programas Vendidos — ${etiquetaSemana}`);
+  estiloDia(ws.getCell(2,1), '');
+  estiloColumna(ws.getCell(3,1), 'Nombre');
+
+  for(let i=0;i<7;i++){
+    estiloDia(ws.getCell(2,2+i), NOMBRES_DIAS_REPORTE[i]);
+    estiloColumna(ws.getCell(3,2+i), 'PP');
+  }
+  estiloTotalHeader(ws.getCell(2,9), 'Total');
+  estiloTotalHeader(ws.getCell(3,9), 'PP');
+
+  const acc = crearAcumulador();
+  let fila = 4;
+  ORDEN_EQUIPOS_REPORTE.forEach(equipoNombre=>{
+    for(let c=1;c<=9;c++) estiloEquipo(ws.getCell(fila,c));
+    estiloEquipo(ws.getCell(fila,1), nombreEquipoVisible(equipoNombre));
+    fila++;
+
+    (roster[equipoNombre]||[]).forEach((persona,i)=>{
+      const banda = i%2===1;
+      ws.getCell(fila,1).value = persona.nombre;
+      aplicarBanda(ws.getCell(fila,1), banda);
+      let total = 0;
+      for(let i2=0;i2<7;i2++){
+        const fecha = fechaParaDiaIndex(fechaDesde, i2);
+        const reg = registroIdx[persona.auth_user_id+'|'+fecha];
+        const val = reg? Number(reg.programas_vendidos)||0 : 0;
+        const c = ws.getCell(fila,2+i2); c.value = val; aplicarBanda(c,banda);
+        acc.sumar(2+i2, val);
+        total += val;
+      }
+      const tc = ws.getCell(fila,9); tc.value = total; tc.font={bold:true}; setFillColor(tc,'FFF3D6');
+      fila++;
+    });
+  });
+
+  estiloGeneral(ws.getCell(fila,1), 'TOTAL GENERAL');
+  let gTotal = 0;
+  for(let i=0;i<7;i++){
+    const v = acc.obtener(2+i);
+    estiloGeneral(ws.getCell(fila,2+i), v);
+    gTotal += v;
+  }
+  estiloGeneral(ws.getCell(fila,9), gTotal);
+  fila++;
+
+  aplicarBordesGrid(ws, fila-1, 9);
+  aplicarFuenteBase(ws, fila-1, 9);
+  autoFitColumns(ws, 8, 20);
+  ws.getColumn(1).width = 26;
+  return ws;
+}
+
+// ---------- Hoja PP Iniciados ----------
+// Las columnas "Programas Vendidos [día] Semana anterior" y "Programas por
+// comenzar ATRASADOS" se dejan en 0 (no hay dato real disponible sin cruzar
+// con la semana pasada; así se acordó).
+function construirHojaPPIniciados(wb, roster, registroIdx, fechaDesde, etiquetaSemana){
+  const ws = wb.addWorksheet('PP Iniciados');
+  ws.views = [{ state:'frozen', ySplit:3, xSplit:1 }];
+
+  const colIniciadosPorDia = [];
+  let col = 2;
+  for(let i=0;i<7;i++){
+    ws.mergeCells(2,col,2,col+1);
+    estiloDia(ws.getCell(2,col), NOMBRES_DIAS_REPORTE[i]);
+    estiloColumna(ws.getCell(3,col), 'Vendidos sem. anterior');
+    estiloColumna(ws.getCell(3,col+1), 'Iniciados');
+    colIniciadosPorDia.push(col+1);
+    col += 2;
+  }
+  const colTotalIniciados=col, colTotalVendidos=col+1, colSinIniciar=col+2, colAtrasados=col+3;
+  ['Iniciados (total)','Vendidos (total)','Sin iniciar','Atrasados'].forEach((h,j)=> estiloTotalHeader(ws.getCell(3,col+j), h));
+  ws.mergeCells(2,col,2,col+3);
+  estiloTotalHeader(ws.getCell(2,col), 'Total de la semana');
+
+  const ultimaCol = colAtrasados;
+  ws.mergeCells(1,1,1,ultimaCol);
+  estiloTitulo(ws.getCell(1,1), `Programas Iniciados — ${etiquetaSemana}`);
+  estiloDia(ws.getCell(2,1), '');
+  estiloColumna(ws.getCell(3,1), 'Nombre');
+
+  const acc = crearAcumulador();
+  let fila = 4;
+  ORDEN_EQUIPOS_REPORTE.forEach(equipoNombre=>{
+    for(let c=1;c<=ultimaCol;c++) estiloEquipo(ws.getCell(fila,c));
+    estiloEquipo(ws.getCell(fila,1), nombreEquipoVisible(equipoNombre));
+    fila++;
+
+    (roster[equipoNombre]||[]).forEach((persona,i)=>{
+      const banda = i%2===1;
+      ws.getCell(fila,1).value = persona.nombre;
+      aplicarBanda(ws.getCell(fila,1), banda);
+      let totalIniciados=0, totalVendidos=0;
+      colIniciadosPorDia.forEach((c,j)=>{
+        const fecha = fechaParaDiaIndex(fechaDesde, j);
+        const reg = registroIdx[persona.auth_user_id+'|'+fecha];
+        const iniciados = reg? Number(reg.programas_iniciados)||0 : 0;
+        const vendidos = reg? Number(reg.programas_vendidos)||0 : 0;
+        const cVend = ws.getCell(fila,c-1); cVend.value = 0; aplicarBanda(cVend,banda);
+        const cIni = ws.getCell(fila,c); cIni.value = iniciados; aplicarBanda(cIni,banda);
+        acc.sumar(c, iniciados);
+        totalIniciados += iniciados;
+        totalVendidos += vendidos;
+      });
+      [totalIniciados,totalVendidos,totalIniciados-totalVendidos,0].forEach((v,j)=>{
+        const c = ws.getCell(fila,colTotalIniciados+j); c.value=v; c.font={bold:true}; setFillColor(c,'FFF3D6');
+      });
+      acc.sumar(colTotalIniciados, totalIniciados);
+      acc.sumar(colTotalVendidos, totalVendidos);
+      fila++;
+    });
+  });
+
+  estiloGeneral(ws.getCell(fila,1), 'TOTAL GENERAL');
+  colIniciadosPorDia.forEach(c=>{
+    estiloGeneral(ws.getCell(fila,c-1), 0);
+    estiloGeneral(ws.getCell(fila,c), acc.obtener(c));
+  });
+  const giniciados = acc.obtener(colTotalIniciados), gvendidos = acc.obtener(colTotalVendidos);
+  estiloGeneral(ws.getCell(fila,colTotalIniciados), giniciados);
+  estiloGeneral(ws.getCell(fila,colTotalVendidos), gvendidos);
+  estiloGeneral(ws.getCell(fila,colSinIniciar), giniciados-gvendidos);
+  estiloGeneral(ws.getCell(fila,colAtrasados), 0);
+  fila++;
+
+  aplicarBordesGrid(ws, fila-1, ultimaCol);
+  aplicarFuenteBase(ws, fila-1, ultimaCol);
+  autoFitColumns(ws, 8, 18);
+  ws.getColumn(1).width = 26;
+  return ws;
+}
+
+// ---------- Hoja Citas Confirmadas y Totales ----------
+function pct(num, den){ return den ? num/den : 0; }
+
+function construirHojaCitas(wb, roster, registroIdx, fechaDesde, etiquetaSemana){
+  const ws = wb.addWorksheet('Citas Confirmadas y Totales');
+  ws.views = [{ state:'frozen', ySplit:3, xSplit:1 }];
+
+  const bloques = [];
+  let col = 2;
+  for(let i=0;i<7;i++){
+    ws.mergeCells(2,col,2,col+4);
+    estiloDia(ws.getCell(2,col), NOMBRES_DIAS_REPORTE[i]);
+    ['Confirmadas','Asistidas','Llamadas a tiempo','% Asistencia','% A tiempo'].forEach((h,j)=> estiloColumna(ws.getCell(3,col+j), h));
+    bloques.push({dia:i, startCol:col});
+    col += 5;
+  }
+  const totalStart = col;
+  ws.mergeCells(2,totalStart,2,totalStart+4);
+  estiloTotalHeader(ws.getCell(2,totalStart), 'Total de la semana');
+  ['Confirmadas','Asistidas','Llamadas a tiempo','% Asistencia','% A tiempo'].forEach((h,j)=> estiloTotalHeader(ws.getCell(3,totalStart+j), h));
+  const ultimaCol = totalStart+4;
+  ws.mergeCells(1,1,1,ultimaCol);
+  estiloTitulo(ws.getCell(1,1), `Citas Confirmadas — ${etiquetaSemana}`);
+  estiloDia(ws.getCell(2,1), '');
+  estiloColumna(ws.getCell(3,1), 'Nombre');
+
+  const acc = crearAcumulador();
+  let fila = 4;
+  ORDEN_EQUIPOS_REPORTE.forEach(equipoNombre=>{
+    for(let c=1;c<=ultimaCol;c++) estiloEquipo(ws.getCell(fila,c));
+    estiloEquipo(ws.getCell(fila,1), nombreEquipoVisible(equipoNombre));
+    fila++;
+
+    (roster[equipoNombre]||[]).forEach((persona,i)=>{
+      const banda = i%2===1;
+      ws.getCell(fila,1).value = persona.nombre;
+      aplicarBanda(ws.getCell(fila,1), banda);
+      let sConf=0, sAsist=0, sTiempo=0;
+      bloques.forEach(b=>{
+        const fecha = fechaParaDiaIndex(fechaDesde, b.dia);
+        const reg = registroIdx[persona.auth_user_id+'|'+fecha];
+        const conf = reg? Number(reg.citas_confirmadas)||0 : 0;
+        const asist = reg? Number(reg.citas_asistidas)||0 : 0;
+        const tiempo = reg? Number(reg.citas_llamadas_tiempo)||0 : 0;
+        [conf,asist,tiempo].forEach((v,j)=>{ const c=ws.getCell(fila,b.startCol+j); c.value=v; aplicarBanda(c,banda); acc.sumar(b.startCol+j, v); });
+        const p1=ws.getCell(fila,b.startCol+3); p1.value=pct(asist,conf); p1.numFmt='0.00%'; aplicarBanda(p1,banda);
+        const p2=ws.getCell(fila,b.startCol+4); p2.value=pct(tiempo,conf); p2.numFmt='0.00%'; aplicarBanda(p2,banda);
+        sConf+=conf; sAsist+=asist; sTiempo+=tiempo;
+      });
+      [sConf,sAsist,sTiempo].forEach((v,j)=>{ const c=ws.getCell(fila,totalStart+j); c.value=v; c.font={bold:true}; setFillColor(c,'FFF3D6'); });
+      const tp1=ws.getCell(fila,totalStart+3); tp1.value=pct(sAsist,sConf); tp1.numFmt='0.00%'; tp1.font={bold:true}; setFillColor(tp1,'FFF3D6');
+      const tp2=ws.getCell(fila,totalStart+4); tp2.value=pct(sTiempo,sConf); tp2.numFmt='0.00%'; tp2.font={bold:true}; setFillColor(tp2,'FFF3D6');
+      fila++;
+    });
+  });
+
+  estiloGeneral(ws.getCell(fila,1), 'TOTAL GENERAL');
+  let gConf=0, gAsist=0, gTiempo=0;
+  bloques.forEach(b=>{
+    const conf=acc.obtener(b.startCol), asist=acc.obtener(b.startCol+1), tiempo=acc.obtener(b.startCol+2);
+    [conf,asist,tiempo].forEach((v,j)=> estiloGeneral(ws.getCell(fila,b.startCol+j), v));
+    const p1=ws.getCell(fila,b.startCol+3); estiloGeneral(p1, pct(asist,conf)); p1.numFmt='0.00%';
+    const p2=ws.getCell(fila,b.startCol+4); estiloGeneral(p2, pct(tiempo,conf)); p2.numFmt='0.00%';
+    gConf+=conf; gAsist+=asist; gTiempo+=tiempo;
+  });
+  [gConf,gAsist,gTiempo].forEach((v,j)=> estiloGeneral(ws.getCell(fila,totalStart+j), v));
+  const gp1=ws.getCell(fila,totalStart+3); estiloGeneral(gp1, pct(gAsist,gConf)); gp1.numFmt='0.00%';
+  const gp2=ws.getCell(fila,totalStart+4); estiloGeneral(gp2, pct(gTiempo,gConf)); gp2.numFmt='0.00%';
+  fila++;
+
+  aplicarBordesGrid(ws, fila-1, ultimaCol);
+
+  // ---- Bloque inferior: Citas Completadas ----
+  fila += 2;
+  ws.mergeCells(fila,1,fila,ultimaCol);
+  estiloTitulo(ws.getCell(fila,1), 'Citas Completadas');
+  fila++;
+  const filaInicioBloque2 = fila;
+  const filaDias2 = fila;
+  const bloques2 = [];
+  col = 2;
+  for(let i=0;i<7;i++){
+    ws.mergeCells(filaDias2,col,filaDias2,col+3);
+    estiloDia(ws.getCell(filaDias2,col), NOMBRES_DIAS_REPORTE[i]);
+    bloques2.push({dia:i, startCol:col});
+    col += 4;
+  }
+  const totalStart2 = col;
+  ws.mergeCells(filaDias2,totalStart2,filaDias2,totalStart2+3);
+  estiloTotalHeader(ws.getCell(filaDias2,totalStart2), 'Total de la semana');
+  estiloDia(ws.getCell(filaDias2,1), 'Nombre');
+  fila++;
+  const filaHead2 = fila;
+  bloques2.forEach(b=> ['Citas del día','Completadas','Movidas','% Efectividad'].forEach((h,j)=> estiloColumna(ws.getCell(filaHead2,b.startCol+j), h)));
+  ['Citas del día','Completadas','No cumplidas','% Efectividad'].forEach((h,j)=> estiloTotalHeader(ws.getCell(filaHead2,totalStart2+j), h));
+  fila++;
+
+  const acc2 = crearAcumulador();
+  const ultimaCol2 = totalStart2+3;
+  ORDEN_EQUIPOS_REPORTE.forEach(equipoNombre=>{
+    for(let c=1;c<=ultimaCol2;c++) estiloEquipo(ws.getCell(fila,c));
+    estiloEquipo(ws.getCell(fila,1), nombreEquipoVisible(equipoNombre));
+    fila++;
+
+    (roster[equipoNombre]||[]).forEach((persona,i)=>{
+      const banda = i%2===1;
+      ws.getCell(fila,1).value = persona.nombre;
+      aplicarBanda(ws.getCell(fila,1), banda);
+      let sDia=0, sComp=0;
+      bloques2.forEach(b=>{
+        const fecha = fechaParaDiaIndex(fechaDesde, b.dia);
+        const reg = registroIdx[persona.auth_user_id+'|'+fecha];
+        const dia = reg? Number(reg.citas_totales_dia)||0 : 0;
+        const comp = reg? Number(reg.citas_totales_asistidas)||0 : 0;
+        const c1=ws.getCell(fila,b.startCol); c1.value=dia; aplicarBanda(c1,banda);
+        const c2=ws.getCell(fila,b.startCol+1); c2.value=comp; aplicarBanda(c2,banda);
+        const c3=ws.getCell(fila,b.startCol+2); c3.value=0; aplicarBanda(c3,banda); // "Citas movidas" — sin dato real
+        const p=ws.getCell(fila,b.startCol+3); p.value=pct(comp,dia); p.numFmt='0.00%'; aplicarBanda(p,banda);
+        acc2.sumar(b.startCol, dia);
+        acc2.sumar(b.startCol+1, comp);
+        sDia+=dia; sComp+=comp;
+      });
+      [sDia,sComp,sDia-sComp].forEach((v,j)=>{ const c=ws.getCell(fila,totalStart2+j); c.value=v; c.font={bold:true}; setFillColor(c,'FFF3D6'); });
+      const pf=ws.getCell(fila,totalStart2+3); pf.value=pct(sComp,sDia); pf.numFmt='0.00%'; pf.font={bold:true}; setFillColor(pf,'FFF3D6');
+      fila++;
+    });
+  });
+
+  estiloGeneral(ws.getCell(fila,1), 'TOTAL GENERAL');
+  let gDia=0, gComp=0;
+  bloques2.forEach(b=>{
+    const dia=acc2.obtener(b.startCol), comp=acc2.obtener(b.startCol+1);
+    estiloGeneral(ws.getCell(fila,b.startCol), dia);
+    estiloGeneral(ws.getCell(fila,b.startCol+1), comp);
+    estiloGeneral(ws.getCell(fila,b.startCol+2), 0);
+    const p=ws.getCell(fila,b.startCol+3); estiloGeneral(p, pct(comp,dia)); p.numFmt='0.00%';
+    gDia+=dia; gComp+=comp;
+  });
+  estiloGeneral(ws.getCell(fila,totalStart2), gDia);
+  estiloGeneral(ws.getCell(fila,totalStart2+1), gComp);
+  estiloGeneral(ws.getCell(fila,totalStart2+2), gDia-gComp);
+  const gpf=ws.getCell(fila,totalStart2+3); estiloGeneral(gpf, pct(gComp,gDia)); gpf.numFmt='0.00%';
+  fila++;
+
+  aplicarBordesGrid(ws, fila-1, Math.max(ultimaCol, ultimaCol2));
+  aplicarFuenteBase(ws, fila-1, Math.max(ultimaCol, ultimaCol2));
+  autoFitColumns(ws, 8, 18);
+  ws.getColumn(1).width = 26;
+  return ws;
+}
+
+// ---------- Hoja Miembros Activos ----------
+function construirHojaMiembros(wb, roster, registroIdx, fechaDesde, etiquetaSemana){
+  const ws = wb.addWorksheet('Miembros Activos');
+  ws.views = [{ state:'frozen', ySplit:3, xSplit:1 }];
+
+  ws.mergeCells(1,1,1,12);
+  estiloTitulo(ws.getCell(1,1), `Miembros Activos — ${etiquetaSemana}`);
+  estiloDia(ws.getCell(2,1), '');
+  estiloColumna(ws.getCell(3,1), 'Nombre');
+
+  for(let i=0;i<7;i++) estiloDia(ws.getCell(2,2+i), NOMBRES_DIAS_REPORTE[i]);
+  ws.mergeCells(2,9,2,11);
+  estiloTotalHeader(ws.getCell(2,9), 'Miembros activos');
+  estiloTotalHeader(ws.getCell(2,12), 'Diferencia');
+  ['Inicio de semana','Diferencia del día','Fin de semana'].forEach((h,j)=> estiloColumna(ws.getCell(3,9+j), h));
+  estiloTotalHeader(ws.getCell(3,12), 'Total de la semana');
+  for(let i=0;i<7;i++) estiloColumna(ws.getCell(3,2+i), 'Activos');
+
+  const acc = crearAcumulador();
+  let fila = 4;
+  ORDEN_EQUIPOS_REPORTE.forEach(equipoNombre=>{
+    for(let c=1;c<=12;c++) estiloEquipo(ws.getCell(fila,c));
+    estiloEquipo(ws.getCell(fila,1), nombreEquipoVisible(equipoNombre));
+    fila++;
+
+    (roster[equipoNombre]||[]).forEach((persona,i)=>{
+      const banda = i%2===1;
+      ws.getCell(fila,1).value = persona.nombre;
+      aplicarBanda(ws.getCell(fila,1), banda);
+      const valoresDia = [];
+      for(let i2=0;i2<7;i2++){
+        const fecha = fechaParaDiaIndex(fechaDesde, i2);
+        const reg = registroIdx[persona.auth_user_id+'|'+fecha];
+        const v = reg? Number(reg.miembros_activos_dia)||0 : 0;
+        const c = ws.getCell(fila,2+i2); c.value=v; aplicarBanda(c,banda);
+        acc.sumar(2+i2, v);
+        valoresDia.push(v);
+      }
+      const inicio = valoresDia[0];
+      const final = valoresDia[6];
+      [inicio, final-inicio, final].forEach((v,j)=>{ const c=ws.getCell(fila,9+j); c.value=v; c.font={bold:true}; setFillColor(c,'FFF3D6'); });
+      const dif = ws.getCell(fila,12); dif.value = final-inicio; dif.font={bold:true}; setFillColor(dif,'FFF3D6');
+      fila++;
+    });
+  });
+
+  // Nota: para "Miembros Activos", el TOTAL GENERAL de cada día es la suma de
+  // miembros activos de ese día entre todos los agentes; Inicio/Fin/Diferencia
+  // de la semana se recalculan a partir de esos totales diarios ya sumados.
+  estiloGeneral(ws.getCell(fila,1), 'TOTAL GENERAL');
+  const totalesDia = [];
+  for(let i=0;i<7;i++){
+    const v = acc.obtener(2+i);
+    estiloGeneral(ws.getCell(fila,2+i), v);
+    totalesDia.push(v);
+  }
+  const gInicio = totalesDia[0], gFinal = totalesDia[6];
+  estiloGeneral(ws.getCell(fila,9), gInicio);
+  estiloGeneral(ws.getCell(fila,10), gFinal-gInicio);
+  estiloGeneral(ws.getCell(fila,11), gFinal);
+  estiloGeneral(ws.getCell(fila,12), gFinal-gInicio);
+  fila++;
+
+  aplicarBordesGrid(ws, fila-1, 12);
+  aplicarFuenteBase(ws, fila-1, 12);
+  autoFitColumns(ws, 8, 20);
+  ws.getColumn(1).width = 26;
+  return ws;
+}
+
+async function generarYDescargarReporte(fechaDesde, fechaHasta, etiquetaSemana){
+  const [roster, regRes, vsoRes] = await Promise.all([
+    obtenerRosterParaReporte(),
+    sb.rpc('reporte_semanal_registro', { fecha_desde: fechaDesde, fecha_hasta: fechaHasta }),
+    sb.rpc('reporte_semanal_vso', { fecha_desde: fechaDesde, fecha_hasta: fechaHasta }),
+  ]);
+  if(regRes.error) throw new Error('No se pudo traer el registro diario: '+regRes.error.message);
+  if(vsoRes.error) throw new Error('No se pudo traer el VSO: '+vsoRes.error.message);
+
+  const registroIdx = indexarPorPersonaFecha(regRes.data);
+  const vsoIdx = indexarPorPersonaFecha(vsoRes.data);
+
+  const wb = new ExcelJS.Workbook();
+  construirHojaVSO(wb, roster, registroIdx, vsoIdx, fechaDesde, etiquetaSemana);
+  construirHojaPPVendidos(wb, roster, registroIdx, fechaDesde, etiquetaSemana);
+  construirHojaPPIniciados(wb, roster, registroIdx, fechaDesde, etiquetaSemana);
+  construirHojaCitas(wb, roster, registroIdx, fechaDesde, etiquetaSemana);
+  construirHojaMiembros(wb, roster, registroIdx, fechaDesde, etiquetaSemana);
+
+  const buffer = await wb.xlsx.writeBuffer();
+  const blob = new Blob([buffer], { type: 'application/octet-stream' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `Reporte Piloto5 - ${etiquetaSemana.trim()}.xlsx`;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
+}
+
+// ---------- Modal de selección de semana ----------
+function openDescargarReporteModal(){
+  closeDescargarReporteModal();
+  const overlay = document.createElement('div');
+  overlay.className = 'confirm-overlay';
+  const semanas = listaUltimasSemanasReporte(12);
+  const options = semanas.map((s,i)=>
+    `<option value="${i}">${formatDateEs(s.from)} — ${formatDateEs(s.to)}</option>`
+  ).join('');
+  overlay.innerHTML = `
+    <div class="user-modal">
+      <button type="button" class="user-modal-close" id="reporte-cerrar-x" aria-label="Cerrar">
+        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+      </button>
+      <h3 class="user-modal-title">Descargar reporte semanal</h3>
+      <div class="form-field-modal">
+        <label for="reporte-semana-select">Selecciona la semana</label>
+        <select id="reporte-semana-select">${options}</select>
+      </div>
+      <div class="user-modal-actions">
+        <button type="button" class="btn-mini" id="reporte-cancelar">Cancelar</button>
+        <button type="button" class="btn-primary" id="reporte-generar">Descargar</button>
+      </div>
+      <div class="ingreso-status" id="reporte-status"></div>
+    </div>
+  `;
+  document.body.appendChild(overlay);
+  window.__reporteOverlay = overlay;
+  window.__reporteSemanas = semanas;
+
+  overlay.addEventListener('click', (e)=>{ if(e.target===overlay) closeDescargarReporteModal(); });
+  document.getElementById('reporte-cerrar-x').addEventListener('click', closeDescargarReporteModal);
+  document.getElementById('reporte-cancelar').addEventListener('click', closeDescargarReporteModal);
+  document.getElementById('reporte-generar').addEventListener('click', async ()=>{
+    const idx = Number(document.getElementById('reporte-semana-select').value);
+    const semana = window.__reporteSemanas[idx];
+    const statusEl = document.getElementById('reporte-status');
+    const btn = document.getElementById('reporte-generar');
+    statusEl.classList.remove('err');
+    statusEl.textContent = 'Generando el archivo…';
+    btn.disabled = true;
+    try{
+      await asegurarSesionFresca();
+      const etiqueta = `SEMANA ${formatDateEs(semana.from).toUpperCase()} AL ${formatDateEs(semana.to).toUpperCase()}`;
+      await generarYDescargarReporte(semana.from, semana.to, etiqueta);
+      statusEl.textContent = 'Listo ✓';
+      setTimeout(closeDescargarReporteModal, 800);
+    }catch(err){
+      statusEl.textContent = err.message || 'No se pudo generar el reporte.';
+      statusEl.classList.add('err');
+    }finally{
+      btn.disabled = false;
+    }
+  });
+}
+
+function closeDescargarReporteModal(){
+  if(window.__reporteOverlay){ window.__reporteOverlay.remove(); window.__reporteOverlay = null; }
+}
+
+document.getElementById('descargar-reporte-btn').addEventListener('click', openDescargarReporteModal);
+
+initCalendar();
+loadSavedUsuarios();
+loadCreatedAgentes().then(loadDeletedAgentes).then(loadSavedIngresoData).then(()=>{
+  renderTotal();
+  renderGrupos();
+  fillAgentSelect();
+  renderAgentDetail(AGENT_KEYS[0]);
+  refreshDetalleTables(AGENT_KEYS[0]);
+  renderIngresoForm(AGENT_KEYS[0]);
+});
+</script>
+</body>
+</html>
