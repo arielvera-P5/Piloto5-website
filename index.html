@@ -128,6 +128,8 @@
     max-width:360px;
     width:90%;
     box-shadow:0 20px 60px rgba(0,0,0,.5);
+    position:relative;
+    overflow:hidden;
   }
   .login-brand{font-family:'Fraunces',serif; font-size:20px; font-weight:600; margin-bottom:4px;}
   .login-brand span{color:var(--amber);}
@@ -377,6 +379,17 @@
   .subview{display:none;}
   .subview.active{display:block;}
 
+  .rpt-subtab-btn{
+    all:unset;
+    cursor:pointer;
+    padding:8px 14px;
+    border-radius:8px;
+    font-size:13.5px;
+    color:var(--muted);
+  }
+  .rpt-subtab-btn:hover{background:var(--panel-alt); color:var(--text);}
+  .rpt-subtab-btn.active{background:var(--panel-alt); color:var(--text); box-shadow:inset 0 -2px 0 var(--amber);}
+
   .detalle-subtabs{display:flex; gap:4px; margin:22px 0 16px;}
   .detalle-subtab-btn{
     all:unset;
@@ -390,6 +403,68 @@
   .detalle-subtab-btn.active{background:var(--panel-alt); color:var(--text); box-shadow:inset 0 -2px 0 var(--teal);}
   .detalle-view{display:none;}
   .detalle-view.active{display:block;}
+
+  /* ---------- Tablas de "Visualizar reporte" (misma lógica que el Excel) ---------- */
+  .reporte-tabla-wrap{
+    background:var(--panel);
+    border:1px solid var(--line);
+    border-radius:var(--radius);
+    overflow:auto;
+    max-height:70vh;
+  }
+  .reporte-loading, .reporte-error{padding:32px; text-align:center; color:var(--muted); font-size:13.5px;}
+  .reporte-error{color:var(--coral);}
+  table.reporte-tabla{width:max-content; min-width:100%; border-collapse:collapse; font-size:12.5px;}
+  .reporte-tabla th, .reporte-tabla td{
+    padding:6px 10px;
+    white-space:nowrap;
+    border:1px solid var(--line);
+    text-align:right;
+  }
+  .reporte-tabla th:first-child, .reporte-tabla td:first-child{
+    text-align:left;
+    position:sticky;
+    left:0;
+    z-index:2;
+    background:var(--panel);
+  }
+  .reporte-tabla thead th{
+    position:sticky;
+    top:0;
+    z-index:1;
+    font-weight:600;
+    font-size:11px;
+  }
+  .reporte-tabla thead th:first-child{ z-index:3; }
+  .reporte-tabla thead tr.rt-dias th{ background:#28323D; color:var(--text); top:0; }
+  .reporte-tabla thead tr.rt-cols th{ background:var(--panel-alt); color:var(--muted); top:29px; }
+  .reporte-tabla thead tr.rt-dias th.rt-total-col,
+  .reporte-tabla thead tr.rt-cols th.rt-total-col{ background:rgba(231,169,76,.22); color:var(--amber); }
+  .reporte-tabla tbody tr.rt-equipo td{
+    background:rgba(231,169,76,.14);
+    color:var(--amber);
+    font-weight:700;
+    letter-spacing:.3px;
+    font-size:12px;
+  }
+  .reporte-tabla tbody tr.rt-banda td{ background:rgba(255,255,255,.025); }
+  .reporte-tabla tbody tr.rt-total-fila td{
+    background:rgba(231,169,76,.22);
+    color:var(--text);
+    font-weight:700;
+    border-top:2px solid var(--amber);
+  }
+  .reporte-tabla td.rt-total-col{ background:rgba(231,169,76,.08); font-weight:600; }
+  .reporte-tabla tbody tr:not(.rt-equipo):not(.rt-total-fila):hover td{ background:var(--panel-alt); }
+
+  /* La columna de nombre queda fija (sticky) al desplazarse horizontalmente;
+     por eso necesita un color de fondo SÓLIDO propio en cada estado de fila
+     (en vez de los tonos translúcidos de arriba), para que las columnas que
+     pasan por debajo al hacer scroll no se mezclen visualmente con el nombre. */
+  .reporte-tabla tbody tr.rt-banda td:first-child{ background:#1D252D; }
+  .reporte-tabla tbody tr.rt-equipo td:first-child{ background:#34322D; }
+  .reporte-tabla tbody tr.rt-total-fila td:first-child{ background:#453D30; }
+  .reporte-tabla tbody tr:not(.rt-equipo):not(.rt-total-fila):hover td:first-child{ background:var(--panel-alt); }
 
   .toolbar{display:flex; gap:10px; align-items:center; margin-bottom:16px; flex-wrap:wrap;}
   .date-filter-wrap{display:flex; align-items:center; gap:8px; flex-wrap:wrap; position:relative;}
@@ -870,6 +945,7 @@
       <button class="tab-btn" data-view="individual">Individual</button>
       <button class="tab-btn" id="nav-luna-btn" data-view="luna">Luna</button>
       <button type="button" class="rail-action-btn rail-action-btn-nav" id="descargar-reporte-btn">Descargar reporte</button>
+      <button class="tab-btn" id="visualizar-reporte-btn" data-view="reporte">Visualizar reporte</button>
     </nav>
     <button type="button" class="rail-action-btn" id="crear-usuario-btn">+ Crea nuevo usuario</button>
     <button type="button" class="rail-action-btn rail-action-btn-grouped" id="editar-usuario-btn">Editar usuario</button>
@@ -883,6 +959,11 @@
     <section class="view active" id="view-total">
       <h1 class="page-title">General de Piloto 5</h1>
       <p class="page-sub">Resultado consolidado de los 4 grupos (CC5A · CC5B · CC5D · CC5E) para la semana.</p>
+
+      <div class="form-field-modal" style="margin:0 0 20px; max-width:280px;">
+        <label for="total-semana-select">Semana</label>
+        <select id="total-semana-select"></select>
+      </div>
 
       <div class="hero">
         <div class="hero-figure">
@@ -1031,6 +1112,29 @@
       </div>
     </section>
 
+    <!-- ===== VISTA VISUALIZAR REPORTE (Supervisor) ===== -->
+    <section class="view" id="view-reporte">
+      <h1 class="page-title">Visualizar reporte</h1>
+      <p class="page-sub">Las mismas 5 hojas del reporte semanal, en vivo — se actualizan solas a medida que los agentes van guardando datos.</p>
+
+      <div class="form-field-modal" style="margin:0 0 18px; max-width:280px;">
+        <label for="reporte-visual-semana-select">Semana</label>
+        <select id="reporte-visual-semana-select"></select>
+      </div>
+
+      <div class="subtabs" id="reporte-visual-subtabs">
+        <button type="button" class="rpt-subtab-btn active" data-hoja="vso">VSO</button>
+        <button type="button" class="rpt-subtab-btn" data-hoja="ppvendidos">PP vendidos</button>
+        <button type="button" class="rpt-subtab-btn" data-hoja="ppiniciados">PP Iniciados</button>
+        <button type="button" class="rpt-subtab-btn" data-hoja="citas">Citas Confirmadas y Totales</button>
+        <button type="button" class="rpt-subtab-btn" data-hoja="miembros">Miembros Activos</button>
+      </div>
+
+      <div class="reporte-tabla-wrap" id="reporte-visual-contenido">
+        <div class="reporte-loading">Cargando…</div>
+      </div>
+    </section>
+
   </main>
 </div>
 
@@ -1100,18 +1204,28 @@ function setupRealtimeGruposTotal(){
   if(!supabaseConfigured || !sb || realtimeChannelSuscrito) return;
   realtimeChannelSuscrito = true;
   realtimeChannel = sb.channel('piloto5-totales-realtime');
-  realtimeChannel.on('broadcast', { event: 'cambio' }, ()=>{
+  realtimeChannel.on('broadcast', { event: 'cambio' }, (msg)=>{
     recalcGroupsAndTotal().then(()=>{
       renderTotal();
       renderGrupos();
     });
+    // "Visualizar reporte" es exclusivo de Supervisor, así que solo esa
+    // sesión necesita mantener sus datos al día en segundo plano.
+    if(esSupervisor){
+      cargarDatosReporteVisual({ tipo: msg?.payload?.tipo });
+    }
   });
   realtimeChannel.subscribe();
 }
 
-function anunciarCambioParaTotales(){
+// tipo: 'vso' (Sumar / Eliminar / Modificar orden) | 'registro' (Guardar
+// Cambios) | sin tipo = cambio general (ej. edición de usuario), que refresca
+// todo. Esta distinción solo afecta qué tan a fondo se refresca la vista
+// "Visualizar reporte" (ver setupRealtimeGruposTotal) — "General de Piloto 5"
+// y "Por grupo" siempre recalculan sus totales completos en cualquier caso.
+function anunciarCambioParaTotales(tipo){
   if(!realtimeChannel) return;
-  realtimeChannel.send({ type:'broadcast', event:'cambio', payload:{} });
+  realtimeChannel.send({ type:'broadcast', event:'cambio', payload:{ tipo: tipo || null } });
 }
 
 // Supabase-js ya refresca la sesión sola cuando hace falta, incluso dentro
@@ -1304,7 +1418,7 @@ let chartMiembros = null;
 
 function renderTotal(){
   const t = DATA.total;
-  const range = getCurrentWeekRange();
+  const range = totalRangoSeleccionado || getCurrentWeekRange();
   const fmtDiaMes = iso => new Date(iso+'T00:00:00').toLocaleDateString('es-EC', {day:'2-digit', month:'long'});
   document.getElementById('hero-ventas').innerHTML = fmtMoney(t.ventas);
   document.getElementById('hero-note').textContent =
@@ -2282,6 +2396,18 @@ async function loadConsultoresRoster(session){
   if(eliminarUsuarioBtn) eliminarUsuarioBtn.style.display = esSupervisor ? '' : 'none';
   if(descargarReporteBtn) descargarReporteBtn.style.display = esSupervisor ? '' : 'none';
 
+  // "Visualizar reporte" también queda visible solo para Supervisor.
+  const visualizarReporteBtn = document.getElementById('visualizar-reporte-btn');
+  if(visualizarReporteBtn){
+    visualizarReporteBtn.style.display = esSupervisor ? '' : 'none';
+    if(!esSupervisor && visualizarReporteBtn.classList.contains('active')){
+      visualizarReporteBtn.classList.remove('active');
+      document.getElementById('view-reporte').classList.remove('active');
+      document.querySelector('.tab-btn[data-view="total"]').classList.add('active');
+      document.getElementById('view-total').classList.add('active');
+    }
+  }
+
   // "Luna" también queda visible solo para Supervisor. La Edge Function ya
   // filtra los datos según el permiso real de quien pregunte, pero además
   // Consultor/División 2B ni siquiera deben ver la opción de usarla.
@@ -2308,6 +2434,7 @@ async function loadConsultoresRoster(session){
   }
   actualizarSaludoLuna(miPerfil ? miPerfil['nombre y apellido'] : '');
   poblarSelectorSemanaLuna();
+  poblarSelectorSemanaTotal();
 
   renderAll();
   renderIngresoForm(AGENT_KEYS[0]);
@@ -2331,6 +2458,27 @@ function poblarSelectorSemanaLuna(){
     `<option value="${i}">${i===0 ? 'Semana actual — ' : ''}${formatDateEs(s.from)} al ${formatDateEs(s.to)}</option>`
   ).join('');
   select.dataset.listo = '1';
+}
+
+// ---------- Selector de semana en "General de Piloto 5" (todos los roles) ----------
+let totalSemanas = [];
+function poblarSelectorSemanaTotal(){
+  const select = document.getElementById('total-semana-select');
+  if(!select || select.dataset.listo) return; // no reconstruir si ya se llenó antes
+  totalSemanas = listaUltimasSemanasReporte(12);
+  select.innerHTML = totalSemanas.map((s,i)=>
+    `<option value="${i}">${i===0 ? 'Semana actual — ' : ''}${formatDateEs(s.from)} al ${formatDateEs(s.to)}</option>`
+  ).join('');
+  select.value = '0';
+  select.dataset.listo = '1';
+  select.addEventListener('change', async ()=>{
+    const idx = Number(select.value || 0);
+    const semana = totalSemanas[idx];
+    if(!semana) return;
+    await recalcGroupsAndTotal({ from: semana.from, to: semana.to });
+    renderTotal();
+    renderGrupos();
+  });
 }
 
 async function guardarNuevoUsuario(){
@@ -2697,7 +2845,7 @@ async function modificarVso(key, vsoId, newVal){
   await renderAgentDetail(key);
   await renderIngresoForm(key);
   showIngresoStatus('Orden actualizada ✓');
-  anunciarCambioParaTotales();
+  anunciarCambioParaTotales('vso');
 }
 
 async function eliminarVso(key, vsoId){
@@ -2711,7 +2859,7 @@ async function eliminarVso(key, vsoId){
   await renderAgentDetail(key);
   await renderIngresoForm(key);
   showIngresoStatus('Orden eliminada ✓');
-  anunciarCambioParaTotales();
+  anunciarCambioParaTotales('vso');
 }
 
 async function guardarNotaVso(key, vsoId, nota){
@@ -2940,8 +3088,16 @@ const GROUP_SUM_FIELDS = ['llamadas_entrantes','llamadas_salientes','llamadas_to
 // equipo del lado del servidor (SECURITY DEFINER), así que cualquier usuario
 // autenticado puede leerlos sin que eso abra el acceso a las filas
 // individuales de "Registro diario" / "Registro diario Div 2B" / "VSO".
-async function recalcGroupsAndTotal(){
-  const range = getCurrentWeekRange();
+// Semana actualmente seleccionada en "General de Piloto 5" (selector
+// #total-semana-select). Por defecto es la semana actual (null = usa
+// getCurrentWeekRange()); al elegir una semana anterior queda guardada aquí
+// para que renderTotal() muestre el rango correcto y el realtime recalcule
+// siempre la semana que el usuario tiene abierta, no forzosamente la actual.
+let totalRangoSeleccionado = null;
+
+async function recalcGroupsAndTotal(rangeParam){
+  const range = rangeParam || totalRangoSeleccionado || getCurrentWeekRange();
+  totalRangoSeleccionado = range;
   const groups = {};
   const counts = {};
 
@@ -3101,7 +3257,7 @@ async function sumarOrden(key){
   await renderAgentDetail(key);
   await refreshDetalleTables(key);
   showIngresoStatus('Orden agregada ✓');
-  anunciarCambioParaTotales();
+  anunciarCambioParaTotales('vso');
 }
 
 // Marca visualmente una casilla como "ya guardada": la deja en 0 y le aplica
@@ -3180,7 +3336,7 @@ async function saveIngresoData(key){
   await renderAgentDetail(key);
   await refreshDetalleTables(key);
   showIngresoStatus(ordenVal !== 0 ? 'Datos guardados ✓ — la orden se sumó al VSO diario.' : 'Datos guardados ✓');
-  anunciarCambioParaTotales();
+  anunciarCambioParaTotales('registro');
 }
 
 document.getElementById('ingreso-form').addEventListener('submit', e=>{
@@ -3914,6 +4070,386 @@ async function generarYDescargarReporte(fechaDesde, fechaHasta, etiquetaSemana){
   a.remove();
   URL.revokeObjectURL(url);
 }
+
+// ============================================================================
+// "Visualizar reporte" — mismas 5 hojas del Excel, pero como tablas HTML
+// dentro de la app, en vivo (Supervisor). Usa exactamente la misma fuente de
+// datos y la misma lógica de columnas/agrupación por equipo/TOTAL GENERAL que
+// generarYDescargarReporte/construirHoja*; solo cambia cómo se dibuja (HTML
+// en vez de celdas de ExcelJS), para que se vea consistente con el tema
+// oscuro de la app en vez de repetir los colores pensados para imprimir.
+// ============================================================================
+function rtFilaEquipo(colspan, equipoNombre){
+  return `<tr class="rt-equipo"><td colspan="${colspan}">${escapeHtml(nombreEquipoVisible(equipoNombre))}</td></tr>`;
+}
+function rtNombreCelda(nombre){ return `<td>${escapeHtml(nombre)}</td>`; }
+
+function construirTablaVSO(roster, registroIdx, vsoIdx, fechaDesde){
+  const totalCols = 1 + 7*4 + 5;
+  let theadDias = '<th rowspan="2">Nombre</th>';
+  NOMBRES_DIAS_REPORTE.forEach(d=> theadDias += `<th colspan="4">${d}</th>`);
+  theadDias += `<th colspan="5" class="rt-total-col">Total de la semana</th>`;
+  let theadCols = '';
+  NOMBRES_DIAS_REPORTE.forEach(()=>{
+    ['EPM','Ll. Entrantes','Ll. Salientes','VSO'].forEach(c=> theadCols += `<th>${c}</th>`);
+  });
+  ['EPM','Ll. Entrantes','Ll. Salientes','Ll. Totales','VSO'].forEach(c=> theadCols += `<th class="rt-total-col">${c}</th>`);
+
+  const totalesDia = Array.from({length:7}, ()=>({epm:0,ent:0,sal:0,ventas:0}));
+  let cuerpo = '';
+  ORDEN_EQUIPOS_REPORTE.forEach(equipoNombre=>{
+    cuerpo += rtFilaEquipo(totalCols, equipoNombre);
+    (roster[equipoNombre]||[]).forEach((persona,i)=>{
+      let sEpm=0,sEnt=0,sSal=0,sVentas=0, celdas='';
+      for(let d=0; d<7; d++){
+        const fecha = fechaParaDiaIndex(fechaDesde, d);
+        const reg = registroIdx[persona.auth_user_id+'|'+fecha];
+        const vso = vsoIdx[persona.auth_user_id+'|'+fecha];
+        const epm = reg? Number(reg.epm)||0 : 0;
+        const ent = reg? Number(reg.llamadas_entrantes)||0 : 0;
+        const sal = reg? Number(reg.llamadas_salientes)||0 : 0;
+        const ventas = vso? Number(vso.ventas)||0 : 0;
+        celdas += `<td>${fmtInt(epm)}</td><td>${fmtInt(ent)}</td><td>${fmtInt(sal)}</td><td>${fmtMoney(ventas)}</td>`;
+        totalesDia[d].epm+=epm; totalesDia[d].ent+=ent; totalesDia[d].sal+=sal; totalesDia[d].ventas+=ventas;
+        sEpm+=epm; sEnt+=ent; sSal+=sal; sVentas+=ventas;
+      }
+      celdas += `<td class="rt-total-col">${fmtInt(sEpm)}</td><td class="rt-total-col">${fmtInt(sEnt)}</td><td class="rt-total-col">${fmtInt(sSal)}</td><td class="rt-total-col">${fmtInt(sEnt+sSal)}</td><td class="rt-total-col">${fmtMoney(sVentas)}</td>`;
+      cuerpo += `<tr class="${i%2===1?'rt-banda':''}">${rtNombreCelda(persona.nombre)}${celdas}</tr>`;
+    });
+  });
+
+  let gEpm=0,gEnt=0,gSal=0,gVentas=0, celdasG='';
+  totalesDia.forEach(d=>{ celdasG += `<td>${fmtInt(d.epm)}</td><td>${fmtInt(d.ent)}</td><td>${fmtInt(d.sal)}</td><td>${fmtMoney(d.ventas)}</td>`; gEpm+=d.epm; gEnt+=d.ent; gSal+=d.sal; gVentas+=d.ventas; });
+  celdasG += `<td>${fmtInt(gEpm)}</td><td>${fmtInt(gEnt)}</td><td>${fmtInt(gSal)}</td><td>${fmtInt(gEnt+gSal)}</td><td>${fmtMoney(gVentas)}</td>`;
+  cuerpo += `<tr class="rt-total-fila"><td>TOTAL GENERAL</td>${celdasG}</tr>`;
+
+  return `<table class="reporte-tabla"><thead><tr class="rt-dias">${theadDias}</tr><tr class="rt-cols">${theadCols}</tr></thead><tbody>${cuerpo}</tbody></table>`;
+}
+
+function construirTablaPPVendidos(roster, registroIdx, fechaDesde){
+  const totalCols = 1 + 7 + 1;
+  let theadDias = '<th rowspan="2">Nombre</th>';
+  NOMBRES_DIAS_REPORTE.forEach(d=> theadDias += `<th>${d}</th>`);
+  theadDias += `<th class="rt-total-col">Total</th>`;
+  let theadCols = '';
+  NOMBRES_DIAS_REPORTE.forEach(()=> theadCols += `<th>PP</th>`);
+  theadCols += `<th class="rt-total-col">PP</th>`;
+
+  const totalesDia = new Array(7).fill(0);
+  let cuerpo = '';
+  ORDEN_EQUIPOS_REPORTE.forEach(equipoNombre=>{
+    cuerpo += rtFilaEquipo(totalCols, equipoNombre);
+    (roster[equipoNombre]||[]).forEach((persona,i)=>{
+      let total=0, celdas='';
+      for(let d=0; d<7; d++){
+        const fecha = fechaParaDiaIndex(fechaDesde, d);
+        const reg = registroIdx[persona.auth_user_id+'|'+fecha];
+        const val = reg? Number(reg.programas_vendidos)||0 : 0;
+        celdas += `<td>${fmtInt(val)}</td>`;
+        totalesDia[d] += val;
+        total += val;
+      }
+      celdas += `<td class="rt-total-col">${fmtInt(total)}</td>`;
+      cuerpo += `<tr class="${i%2===1?'rt-banda':''}">${rtNombreCelda(persona.nombre)}${celdas}</tr>`;
+    });
+  });
+
+  let gTotal=0, celdasG='';
+  totalesDia.forEach(v=>{ celdasG += `<td>${fmtInt(v)}</td>`; gTotal+=v; });
+  celdasG += `<td>${fmtInt(gTotal)}</td>`;
+  cuerpo += `<tr class="rt-total-fila"><td>TOTAL GENERAL</td>${celdasG}</tr>`;
+
+  return `<table class="reporte-tabla"><thead><tr class="rt-dias">${theadDias}</tr><tr class="rt-cols">${theadCols}</tr></thead><tbody>${cuerpo}</tbody></table>`;
+}
+
+function construirTablaPPIniciados(roster, registroIdx, fechaDesde){
+  const totalCols = 1 + 7*2 + 4;
+  let theadDias = '<th rowspan="2">Nombre</th>';
+  NOMBRES_DIAS_REPORTE.forEach(d=> theadDias += `<th colspan="2">${d}</th>`);
+  theadDias += `<th colspan="4" class="rt-total-col">Total de la semana</th>`;
+  let theadCols = '';
+  NOMBRES_DIAS_REPORTE.forEach(()=>{
+    theadCols += `<th>Vendidos sem. anterior</th><th>Iniciados</th>`;
+  });
+  ['Iniciados (total)','Vendidos (total)','Sin iniciar','Atrasados'].forEach(c=> theadCols += `<th class="rt-total-col">${c}</th>`);
+
+  const totalesIniciadosDia = new Array(7).fill(0);
+  let cuerpo = '';
+  ORDEN_EQUIPOS_REPORTE.forEach(equipoNombre=>{
+    cuerpo += rtFilaEquipo(totalCols, equipoNombre);
+    (roster[equipoNombre]||[]).forEach((persona,i)=>{
+      let totalIniciados=0, totalVendidos=0, celdas='';
+      for(let d=0; d<7; d++){
+        const fecha = fechaParaDiaIndex(fechaDesde, d);
+        const reg = registroIdx[persona.auth_user_id+'|'+fecha];
+        const iniciados = reg? Number(reg.programas_iniciados)||0 : 0;
+        const vendidos = reg? Number(reg.programas_vendidos)||0 : 0;
+        celdas += `<td>0</td><td>${fmtInt(iniciados)}</td>`;
+        totalesIniciadosDia[d] += iniciados;
+        totalIniciados += iniciados;
+        totalVendidos += vendidos;
+      }
+      celdas += `<td class="rt-total-col">${fmtInt(totalIniciados)}</td><td class="rt-total-col">${fmtInt(totalVendidos)}</td><td class="rt-total-col">${fmtInt(totalIniciados-totalVendidos)}</td><td class="rt-total-col">0</td>`;
+      cuerpo += `<tr class="${i%2===1?'rt-banda':''}">${rtNombreCelda(persona.nombre)}${celdas}</tr>`;
+    });
+  });
+
+  let gIniciados=0, celdasG='';
+  totalesIniciadosDia.forEach(v=>{ celdasG += `<td>0</td><td>${fmtInt(v)}</td>`; gIniciados+=v; });
+  // "Vendidos (total)" de TOTAL GENERAL se recalcula igual que en el Excel:
+  // suma de programas_vendidos de todos los agentes en la semana.
+  let gVendidos=0;
+  ORDEN_EQUIPOS_REPORTE.forEach(equipoNombre=>{
+    (roster[equipoNombre]||[]).forEach(persona=>{
+      for(let d=0; d<7; d++){
+        const fecha = fechaParaDiaIndex(fechaDesde, d);
+        const reg = registroIdx[persona.auth_user_id+'|'+fecha];
+        gVendidos += reg? Number(reg.programas_vendidos)||0 : 0;
+      }
+    });
+  });
+  celdasG += `<td>${fmtInt(gIniciados)}</td><td>${fmtInt(gVendidos)}</td><td>${fmtInt(gIniciados-gVendidos)}</td><td>0</td>`;
+  cuerpo += `<tr class="rt-total-fila"><td>TOTAL GENERAL</td>${celdasG}</tr>`;
+
+  return `<table class="reporte-tabla"><thead><tr class="rt-dias">${theadDias}</tr><tr class="rt-cols">${theadCols}</tr></thead><tbody>${cuerpo}</tbody></table>`;
+}
+
+function construirTablaCitas(roster, registroIdx, fechaDesde){
+  // ---- Bloque 1: Citas Confirmadas ----
+  const totalCols1 = 1 + 7*5 + 5;
+  let theadDias1 = '<th rowspan="2">Nombre</th>';
+  NOMBRES_DIAS_REPORTE.forEach(d=> theadDias1 += `<th colspan="5">${d}</th>`);
+  theadDias1 += `<th colspan="5" class="rt-total-col">Total de la semana</th>`;
+  let theadCols1 = '';
+  NOMBRES_DIAS_REPORTE.forEach(()=>{
+    ['Confirmadas','Asistidas','Ll. a tiempo','% Asistencia','% A tiempo'].forEach(c=> theadCols1 += `<th>${c}</th>`);
+  });
+  ['Confirmadas','Asistidas','Ll. a tiempo','% Asistencia','% A tiempo'].forEach(c=> theadCols1 += `<th class="rt-total-col">${c}</th>`);
+
+  const totalesDia1 = Array.from({length:7}, ()=>({conf:0,asist:0,tiempo:0}));
+  let cuerpo1 = '';
+  ORDEN_EQUIPOS_REPORTE.forEach(equipoNombre=>{
+    cuerpo1 += rtFilaEquipo(totalCols1, equipoNombre);
+    (roster[equipoNombre]||[]).forEach((persona,i)=>{
+      let sConf=0,sAsist=0,sTiempo=0, celdas='';
+      for(let d=0; d<7; d++){
+        const fecha = fechaParaDiaIndex(fechaDesde, d);
+        const reg = registroIdx[persona.auth_user_id+'|'+fecha];
+        const conf = reg? Number(reg.citas_confirmadas)||0 : 0;
+        const asist = reg? Number(reg.citas_asistidas)||0 : 0;
+        const tiempo = reg? Number(reg.citas_llamadas_tiempo)||0 : 0;
+        celdas += `<td>${fmtInt(conf)}</td><td>${fmtInt(asist)}</td><td>${fmtInt(tiempo)}</td><td>${fmtPct(pct(asist,conf))}</td><td>${fmtPct(pct(tiempo,conf))}</td>`;
+        totalesDia1[d].conf+=conf; totalesDia1[d].asist+=asist; totalesDia1[d].tiempo+=tiempo;
+        sConf+=conf; sAsist+=asist; sTiempo+=tiempo;
+      }
+      celdas += `<td class="rt-total-col">${fmtInt(sConf)}</td><td class="rt-total-col">${fmtInt(sAsist)}</td><td class="rt-total-col">${fmtInt(sTiempo)}</td><td class="rt-total-col">${fmtPct(pct(sAsist,sConf))}</td><td class="rt-total-col">${fmtPct(pct(sTiempo,sConf))}</td>`;
+      cuerpo1 += `<tr class="${i%2===1?'rt-banda':''}">${rtNombreCelda(persona.nombre)}${celdas}</tr>`;
+    });
+  });
+  let gConf=0,gAsist=0,gTiempo=0, celdasG1='';
+  totalesDia1.forEach(d=>{ celdasG1 += `<td>${fmtInt(d.conf)}</td><td>${fmtInt(d.asist)}</td><td>${fmtInt(d.tiempo)}</td><td>${fmtPct(pct(d.asist,d.conf))}</td><td>${fmtPct(pct(d.tiempo,d.conf))}</td>`; gConf+=d.conf; gAsist+=d.asist; gTiempo+=d.tiempo; });
+  celdasG1 += `<td>${fmtInt(gConf)}</td><td>${fmtInt(gAsist)}</td><td>${fmtInt(gTiempo)}</td><td>${fmtPct(pct(gAsist,gConf))}</td><td>${fmtPct(pct(gTiempo,gConf))}</td>`;
+  cuerpo1 += `<tr class="rt-total-fila"><td>TOTAL GENERAL</td>${celdasG1}</tr>`;
+  const tabla1 = `<table class="reporte-tabla"><thead><tr class="rt-dias">${theadDias1}</tr><tr class="rt-cols">${theadCols1}</tr></thead><tbody>${cuerpo1}</tbody></table>`;
+
+  // ---- Bloque 2: Citas Completadas ----
+  const totalCols2 = 1 + 7*4 + 4;
+  let theadDias2 = '<th rowspan="2">Nombre</th>';
+  NOMBRES_DIAS_REPORTE.forEach(d=> theadDias2 += `<th colspan="4">${d}</th>`);
+  theadDias2 += `<th colspan="4" class="rt-total-col">Total de la semana</th>`;
+  let theadCols2 = '';
+  NOMBRES_DIAS_REPORTE.forEach(()=>{
+    ['Citas del día','Completadas','Movidas','% Efectividad'].forEach(c=> theadCols2 += `<th>${c}</th>`);
+  });
+  ['Citas del día','Completadas','No cumplidas','% Efectividad'].forEach(c=> theadCols2 += `<th class="rt-total-col">${c}</th>`);
+
+  const totalesDia2 = Array.from({length:7}, ()=>({dia:0,comp:0}));
+  let cuerpo2 = '';
+  ORDEN_EQUIPOS_REPORTE.forEach(equipoNombre=>{
+    cuerpo2 += rtFilaEquipo(totalCols2, equipoNombre);
+    (roster[equipoNombre]||[]).forEach((persona,i)=>{
+      let sDia=0,sComp=0, celdas='';
+      for(let d=0; d<7; d++){
+        const fecha = fechaParaDiaIndex(fechaDesde, d);
+        const reg = registroIdx[persona.auth_user_id+'|'+fecha];
+        const dia = reg? Number(reg.citas_totales_dia)||0 : 0;
+        const comp = reg? Number(reg.citas_totales_asistidas)||0 : 0;
+        celdas += `<td>${fmtInt(dia)}</td><td>${fmtInt(comp)}</td><td>0</td><td>${fmtPct(pct(comp,dia))}</td>`;
+        totalesDia2[d].dia+=dia; totalesDia2[d].comp+=comp;
+        sDia+=dia; sComp+=comp;
+      }
+      celdas += `<td class="rt-total-col">${fmtInt(sDia)}</td><td class="rt-total-col">${fmtInt(sComp)}</td><td class="rt-total-col">${fmtInt(sDia-sComp)}</td><td class="rt-total-col">${fmtPct(pct(sComp,sDia))}</td>`;
+      cuerpo2 += `<tr class="${i%2===1?'rt-banda':''}">${rtNombreCelda(persona.nombre)}${celdas}</tr>`;
+    });
+  });
+  let gDia=0,gComp=0, celdasG2='';
+  totalesDia2.forEach(d=>{ celdasG2 += `<td>${fmtInt(d.dia)}</td><td>${fmtInt(d.comp)}</td><td>0</td><td>${fmtPct(pct(d.comp,d.dia))}</td>`; gDia+=d.dia; gComp+=d.comp; });
+  celdasG2 += `<td>${fmtInt(gDia)}</td><td>${fmtInt(gComp)}</td><td>${fmtInt(gDia-gComp)}</td><td>${fmtPct(pct(gComp,gDia))}</td>`;
+  cuerpo2 += `<tr class="rt-total-fila"><td>TOTAL GENERAL</td>${celdasG2}</tr>`;
+  const tabla2 = `<table class="reporte-tabla"><thead><tr class="rt-dias">${theadDias2}</tr><tr class="rt-cols">${theadCols2}</tr></thead><tbody>${cuerpo2}</tbody></table>`;
+
+  return `<h3 style="margin:0 0 10px; font-size:14px; color:var(--text);">Citas Confirmadas</h3>${tabla1}<h3 style="margin:26px 0 10px; font-size:14px; color:var(--text);">Citas Completadas</h3>${tabla2}`;
+}
+
+function construirTablaMiembros(roster, registroIdx, fechaDesde){
+  const totalCols = 1 + 7 + 4;
+  let theadDias = '<th rowspan="2">Nombre</th>';
+  NOMBRES_DIAS_REPORTE.forEach(d=> theadDias += `<th>${d}</th>`);
+  theadDias += `<th colspan="3" class="rt-total-col">Miembros activos</th><th class="rt-total-col">Diferencia</th>`;
+  let theadCols = '';
+  NOMBRES_DIAS_REPORTE.forEach(()=> theadCols += `<th>Activos</th>`);
+  ['Inicio de semana','Diferencia del día','Fin de semana'].forEach(c=> theadCols += `<th class="rt-total-col">${c}</th>`);
+  theadCols += `<th class="rt-total-col">Total de la semana</th>`;
+
+  const totalesDia = new Array(7).fill(0);
+  let cuerpo = '';
+  ORDEN_EQUIPOS_REPORTE.forEach(equipoNombre=>{
+    cuerpo += rtFilaEquipo(totalCols, equipoNombre);
+    (roster[equipoNombre]||[]).forEach((persona,i)=>{
+      const valoresDia = [];
+      let celdas='';
+      for(let d=0; d<7; d++){
+        const fecha = fechaParaDiaIndex(fechaDesde, d);
+        const reg = registroIdx[persona.auth_user_id+'|'+fecha];
+        const v = reg? Number(reg.miembros_activos_dia)||0 : 0;
+        celdas += `<td>${fmtInt(v)}</td>`;
+        totalesDia[d] += v;
+        valoresDia.push(v);
+      }
+      const inicio = valoresDia[0], final = valoresDia[6];
+      celdas += `<td class="rt-total-col">${fmtInt(inicio)}</td><td class="rt-total-col">${fmtInt(final-inicio)}</td><td class="rt-total-col">${fmtInt(final)}</td><td class="rt-total-col">${fmtInt(final-inicio)}</td>`;
+      cuerpo += `<tr class="${i%2===1?'rt-banda':''}">${rtNombreCelda(persona.nombre)}${celdas}</tr>`;
+    });
+  });
+
+  let celdasG='';
+  totalesDia.forEach(v=> celdasG += `<td>${fmtInt(v)}</td>`);
+  const gInicio = totalesDia[0], gFinal = totalesDia[6];
+  celdasG += `<td>${fmtInt(gInicio)}</td><td>${fmtInt(gFinal-gInicio)}</td><td>${fmtInt(gFinal)}</td><td>${fmtInt(gFinal-gInicio)}</td>`;
+  cuerpo += `<tr class="rt-total-fila"><td>TOTAL GENERAL</td>${celdasG}</tr>`;
+
+  return `<table class="reporte-tabla"><thead><tr class="rt-dias">${theadDias}</tr><tr class="rt-cols">${theadCols}</tr></thead><tbody>${cuerpo}</tbody></table>`;
+}
+
+// ---------- Controlador de la vista "Visualizar reporte" ----------
+let reporteVisualSemanas = [];
+let reporteVisualEstado = { fechaDesde:null, fechaHasta:null, roster:null, registroIdx:null, vsoIdx:null, cargando:false };
+let reporteVisualHojaActiva = 'vso';
+
+function poblarSelectSemanaReporteVisual(){
+  const sel = document.getElementById('reporte-visual-semana-select');
+  if(!sel) return;
+  reporteVisualSemanas = listaUltimasSemanasReporte(12);
+  sel.innerHTML = reporteVisualSemanas.map((s,i)=>
+    `<option value="${i}">${formatDateEs(s.from)} — ${formatDateEs(s.to)}</option>`
+  ).join('');
+  sel.value = '0';
+}
+
+// opts.tipo: sin definir = carga completa (roster + registro + VSO), usada al
+// abrir la vista o al cambiar de semana. 'vso' o 'registro' = actualización
+// parcial disparada en tiempo real: solo se vuelve a pedir esa mitad de los
+// datos (la que de verdad cambió) y se conserva la otra tal cual estaba, para
+// que la columna "VSO" solo se refresque con Sumar/Eliminar/Modificar orden,
+// y el resto de columnas (EPM, Ll. Entrantes, Ll. Salientes, y las demás
+// hojas) solo con "Guardar Cambios".
+async function cargarDatosReporteVisual(opts){
+  opts = opts || {};
+  const tipo = opts.tipo;
+  const sel = document.getElementById('reporte-visual-semana-select');
+  const contenedor = document.getElementById('reporte-visual-contenido');
+  if(!sel || !contenedor) return;
+  const idx = Number(sel.value || 0);
+  const semana = reporteVisualSemanas[idx];
+  if(!semana) return;
+
+  const esActualizacionParcial = !!tipo && !!reporteVisualEstado.roster &&
+    reporteVisualEstado.fechaDesde === semana.from;
+
+  const vistaActiva = document.getElementById('view-reporte')?.classList.contains('active');
+
+  if(esActualizacionParcial){
+    try{
+      await asegurarSesionFresca();
+      if(tipo === 'vso'){
+        const vsoRes = await sb.rpc('reporte_semanal_vso', { fecha_desde: semana.from, fecha_hasta: semana.to });
+        if(vsoRes.error) throw new Error('No se pudo traer el VSO: '+vsoRes.error.message);
+        reporteVisualEstado.vsoIdx = indexarPorPersonaFecha(vsoRes.data);
+      }else if(tipo === 'registro'){
+        const regRes = await sb.rpc('reporte_semanal_registro', { fecha_desde: semana.from, fecha_hasta: semana.to });
+        if(regRes.error) throw new Error('No se pudo traer el registro diario: '+regRes.error.message);
+        reporteVisualEstado.registroIdx = indexarPorPersonaFecha(regRes.data);
+      }
+      if(vistaActiva) renderReporteVisualHoja();
+    }catch(err){
+      // Una actualización parcial en segundo plano que falla no debe tapar la
+      // tabla ya visible con un mensaje de error; solo se deja de reflejar
+      // ese cambio puntual hasta el siguiente refresco.
+      console.error('No se pudo aplicar la actualización parcial del reporte:', err.message || err);
+    }
+    return;
+  }
+
+  if(vistaActiva){
+    reporteVisualEstado.cargando = true;
+    contenedor.innerHTML = '<div class="reporte-loading">Cargando…</div>';
+  }
+  try{
+    await asegurarSesionFresca();
+    const [roster, regRes, vsoRes] = await Promise.all([
+      obtenerRosterParaReporte(),
+      sb.rpc('reporte_semanal_registro', { fecha_desde: semana.from, fecha_hasta: semana.to }),
+      sb.rpc('reporte_semanal_vso', { fecha_desde: semana.from, fecha_hasta: semana.to }),
+    ]);
+    if(regRes.error) throw new Error('No se pudo traer el registro diario: '+regRes.error.message);
+    if(vsoRes.error) throw new Error('No se pudo traer el VSO: '+vsoRes.error.message);
+    reporteVisualEstado = {
+      fechaDesde: semana.from,
+      fechaHasta: semana.to,
+      roster,
+      registroIdx: indexarPorPersonaFecha(regRes.data),
+      vsoIdx: indexarPorPersonaFecha(vsoRes.data),
+      cargando: false,
+    };
+    if(vistaActiva) renderReporteVisualHoja();
+  }catch(err){
+    reporteVisualEstado.cargando = false;
+    if(vistaActiva) contenedor.innerHTML = `<div class="reporte-error">${escapeHtml(err.message || 'No se pudo cargar el reporte.')}</div>`;
+  }
+}
+
+function renderReporteVisualHoja(){
+  const contenedor = document.getElementById('reporte-visual-contenido');
+  if(!contenedor || !reporteVisualEstado.roster) return;
+  const { roster, registroIdx, vsoIdx, fechaDesde } = reporteVisualEstado;
+  let html = '';
+  if(reporteVisualHojaActiva === 'vso') html = construirTablaVSO(roster, registroIdx, vsoIdx, fechaDesde);
+  else if(reporteVisualHojaActiva === 'ppvendidos') html = construirTablaPPVendidos(roster, registroIdx, fechaDesde);
+  else if(reporteVisualHojaActiva === 'ppiniciados') html = construirTablaPPIniciados(roster, registroIdx, fechaDesde);
+  else if(reporteVisualHojaActiva === 'citas') html = construirTablaCitas(roster, registroIdx, fechaDesde);
+  else if(reporteVisualHojaActiva === 'miembros') html = construirTablaMiembros(roster, registroIdx, fechaDesde);
+  contenedor.innerHTML = html;
+}
+
+document.querySelectorAll('#reporte-visual-subtabs .rpt-subtab-btn').forEach(btn=>{
+  btn.addEventListener('click', ()=>{
+    document.querySelectorAll('#reporte-visual-subtabs .rpt-subtab-btn').forEach(b=>b.classList.remove('active'));
+    btn.classList.add('active');
+    reporteVisualHojaActiva = btn.dataset.hoja;
+    renderReporteVisualHoja();
+  });
+});
+
+document.getElementById('reporte-visual-semana-select').addEventListener('change', cargarDatosReporteVisual);
+
+let reporteVisualInicializado = false;
+document.getElementById('visualizar-reporte-btn').addEventListener('click', ()=>{
+  if(!reporteVisualInicializado){
+    reporteVisualInicializado = true;
+    poblarSelectSemanaReporteVisual();
+    cargarDatosReporteVisual();
+  }
+});
 
 // ---------- Modal de selección de semana ----------
 function openDescargarReporteModal(){
