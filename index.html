@@ -22,6 +22,29 @@
     --coral:#E2685C;
     --violet:#8B93F2;
     --radius:10px;
+    --rt-dias-bg:#28323D;
+    --rt-banda-solid:#1D252D;
+    --rt-equipo-solid:#34322D;
+    --rt-total-solid:#453D30;
+  }
+  /* Modo claro: se activa con [data-theme="light"] en <html>, guardado en
+     localStorage y disponible para los 3 roles (Supervisor, Consultor y
+     División 2B) desde el botón de sol/luna en la parte superior. */
+  :root[data-theme="light"]{
+    --bg:#F3F1EA;
+    --panel:#FFFFFF;
+    --panel-alt:#F1F3F6;
+    --line:#DCE1E7;
+    --text:#1B2430;
+    --muted:#5E6A78;
+    --amber:#B9790E;
+    --teal:#0F7F73;
+    --coral:#C0392B;
+    --violet:#5B5FC7;
+    --rt-dias-bg:#E8EBEF;
+    --rt-banda-solid:#F7F8FA;
+    --rt-equipo-solid:#FBEFD8;
+    --rt-total-solid:#F6DFAF;
   }
   *{box-sizing:border-box;}
   html,body{margin:0;padding:0;}
@@ -31,9 +54,39 @@
     font-family:'Inter',system-ui,sans-serif;
     -webkit-font-smoothing:antialiased;
     min-height:100vh;
+    transition:background .15s ease, color .15s ease;
   }
   ::selection{background:var(--amber);color:#0F141B;}
   a{color:inherit;}
+
+  .theme-toggle-btn{
+    position:fixed;
+    top:18px;
+    right:174px;
+    z-index:210;
+    display:flex;
+    align-items:center;
+    gap:6px;
+    background:var(--panel);
+    border:1px solid var(--line);
+    color:var(--text);
+    padding:7px 12px;
+    border-radius:999px;
+    font-size:12.5px;
+    font-family:inherit;
+    font-weight:600;
+    cursor:pointer;
+    box-shadow:0 6px 18px rgba(0,0,0,.25);
+  }
+  .theme-toggle-btn:hover{background:var(--panel-alt);}
+  .theme-toggle-btn svg{width:15px; height:15px; flex:none;}
+  @media (max-width:820px){
+    .theme-toggle-btn{top:10px; right:120px; padding:6px 10px; font-size:12px;}
+  }
+  @media (max-width:430px){
+    .theme-toggle-btn span{display:none;}
+    .theme-toggle-btn{right:54px; padding:6px 8px;}
+  }
 
   .shell{
     display:grid;
@@ -147,6 +200,23 @@
   }
 
   /* ---------- Escenario nocturno de Halloween (puramente visual) ---------- */
+  /* La luna y la telaraña usan currentColor para poder recolorearse según el
+     tema (ver variables --hw-* más abajo); la calabaza y los embers ya son
+     tonos cálidos que funcionan igual de bien en los dos fondos. */
+  :root{
+    --hw-star-color:#FFF3D6;
+    --hw-star-glow:rgba(255,243,214,.9);
+    --hw-moon-color:#F7DFAF;
+    --hw-moon-shadow:rgba(255,200,120,.45);
+    --hw-web-color:#DCD2FF;
+  }
+  :root[data-theme="light"]{
+    --hw-star-color:#C9933E;
+    --hw-star-glow:rgba(201,147,62,.55);
+    --hw-moon-color:#6B5B73;
+    --hw-moon-shadow:rgba(0,0,0,.18);
+    --hw-web-color:#6B5B86;
+  }
   .hw-scene{
     position:absolute;
     inset:0;
@@ -159,16 +229,17 @@
     position:absolute;
     width:3px; height:3px;
     border-radius:50%;
-    background:#FFF3D6;
-    box-shadow:0 0 6px 1px rgba(255,243,214,.9);
+    background:var(--hw-star-color);
+    box-shadow:0 0 6px 1px var(--hw-star-glow);
     animation:hw-twinkle 2.6s ease-in-out infinite;
   }
   @keyframes hw-twinkle{
     0%,100%{ opacity:.25; transform:scale(.8); }
     50%{ opacity:1; transform:scale(1.35); }
   }
-  .hw-moon{ position:absolute; filter:drop-shadow(0 0 18px rgba(255,200,120,.45)); }
-  .hw-web{ position:absolute; opacity:.8; }
+  .hw-moon{ position:absolute; color:var(--hw-moon-color); filter:drop-shadow(0 0 18px var(--hw-moon-shadow)); }
+  .hw-web{ position:absolute; opacity:.8; color:var(--hw-web-color); }
+  :root[data-theme="light"] .hw-web{ opacity:.6; }
   .hw-pumpkin{ position:absolute; filter:drop-shadow(0 6px 16px rgba(0,0,0,.55)); }
   .hw-pumpkin-glow{ animation:hw-candle-flicker 2.6s infinite; transform-origin:50% 50%; }
   @keyframes hw-candle-flicker{
@@ -512,7 +583,7 @@
     font-size:12px;
   }
   .reporte-tabla thead th:first-child{ z-index:3; }
-  .reporte-tabla thead tr.rt-dias th{ background:#28323D; color:var(--text); top:0; }
+  .reporte-tabla thead tr.rt-dias th{ background:var(--rt-dias-bg); color:var(--text); top:0; }
   .reporte-tabla thead tr.rt-cols th{ background:var(--panel-alt); color:var(--muted); top:33px; }
   .reporte-tabla thead tr.rt-dias th.rt-total-col,
   .reporte-tabla thead tr.rt-cols th.rt-total-col{ background:rgba(231,169,76,.22); color:var(--amber); }
@@ -537,9 +608,9 @@
      por eso necesita un color de fondo SÓLIDO propio en cada estado de fila
      (en vez de los tonos translúcidos de arriba), para que las columnas que
      pasan por debajo al hacer scroll no se mezclen visualmente con el nombre. */
-  .reporte-tabla tbody tr.rt-banda td:first-child{ background:#1D252D; }
-  .reporte-tabla tbody tr.rt-equipo td:first-child{ background:#34322D; }
-  .reporte-tabla tbody tr.rt-total-fila td:first-child{ background:#453D30; }
+  .reporte-tabla tbody tr.rt-banda td:first-child{ background:var(--rt-banda-solid); }
+  .reporte-tabla tbody tr.rt-equipo td:first-child{ background:var(--rt-equipo-solid); }
+  .reporte-tabla tbody tr.rt-total-fila td:first-child{ background:var(--rt-total-solid); }
   .reporte-tabla tbody tr:not(.rt-equipo):not(.rt-total-fila):hover td:first-child{ background:var(--panel-alt); }
 
   .toolbar{display:flex; gap:10px; align-items:center; margin-bottom:16px; flex-wrap:wrap;}
@@ -981,10 +1052,10 @@
     </radialGradient>
     <symbol id="hw-moon" viewBox="0 0 100 100">
       <circle cx="50" cy="50" r="48" fill="url(#hw-moon-glow)"/>
-      <path d="M62 12 A38 38 0 1 0 62 88 A30 30 0 1 1 62 12 Z" fill="#F7DFAF"/>
+      <path d="M62 12 A38 38 0 1 0 62 88 A30 30 0 1 1 62 12 Z" fill="currentColor"/>
     </symbol>
     <symbol id="hw-web" viewBox="0 0 140 140">
-      <g stroke="rgba(220,210,255,.4)" stroke-width="1" fill="none">
+      <g stroke="currentColor" stroke-width="1" fill="none" opacity=".45">
         <line x1="0" y1="0" x2="140" y2="20"/>
         <line x1="0" y1="0" x2="140" y2="70"/>
         <line x1="0" y1="0" x2="140" y2="140"/>
@@ -1000,8 +1071,8 @@
         <path d="M0,65 Q54,88 100,65"/>
         <path d="M0,95 Q60,118 118,95"/>
       </g>
-      <circle cx="18" cy="30" r="2.4" fill="rgba(230,222,255,.7)"/>
-      <path d="M18,30 L23,36 M18,30 L14,35 M18,30 L20,24" stroke="rgba(230,222,255,.6)" stroke-width="1" fill="none"/>
+      <circle cx="18" cy="30" r="2.4" fill="currentColor" opacity=".75"/>
+      <path d="M18,30 L23,36 M18,30 L14,35 M18,30 L20,24" stroke="currentColor" stroke-width="1" fill="none" opacity=".65"/>
     </symbol>
     <symbol id="hw-pumpkin" viewBox="0 0 100 82">
       <path d="M46 6 Q50 -4 57 5 L54 16 L44 16 Z" fill="#46652F"/>
@@ -1018,6 +1089,22 @@
     </symbol>
   </defs>
 </svg>
+
+<button type="button" class="theme-toggle-btn" id="theme-toggle-btn" aria-label="Cambiar entre modo oscuro y modo claro">
+  <svg id="theme-toggle-icon-dark" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79Z"></path></svg>
+  <svg id="theme-toggle-icon-light" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:none;"><circle cx="12" cy="12" r="4"></circle><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"></path></svg>
+  <span id="theme-toggle-label">Modo claro</span>
+</button>
+<script>
+  // Aplica el tema guardado lo antes posible, para no mostrar un parpadeo
+  // del tema por defecto antes de corregirlo.
+  (function(){
+    try{
+      var temaGuardado = localStorage.getItem('piloto5-tema');
+      if(temaGuardado === 'light') document.documentElement.setAttribute('data-theme','light');
+    }catch(e){}
+  })();
+</script>
 
 <div class="login-screen" id="login-screen">
   <div class="hw-scene" aria-hidden="true">
@@ -1603,6 +1690,46 @@ document.querySelectorAll('.detalle-subtab-btn').forEach(btn=>{
   });
 });
 
+// ---------- Tema (modo oscuro / modo claro) ----------
+// Disponible para los 3 roles: no depende del rol, solo de lo que cada
+// quien prefiera ver en su propia sesión (se guarda en su navegador).
+function cssVar(nombre){
+  return getComputedStyle(document.documentElement).getPropertyValue(nombre).trim();
+}
+function temaActual(){
+  return document.documentElement.getAttribute('data-theme') === 'light' ? 'light' : 'dark';
+}
+function actualizarIconoTema(){
+  const esClaro = temaActual() === 'light';
+  const iconoOscuro = document.getElementById('theme-toggle-icon-dark');
+  const iconoClaro = document.getElementById('theme-toggle-icon-light');
+  const label = document.getElementById('theme-toggle-label');
+  if(iconoOscuro) iconoOscuro.style.display = esClaro ? 'none' : '';
+  if(iconoClaro) iconoClaro.style.display = esClaro ? '' : 'none';
+  if(label) label.textContent = esClaro ? 'Modo oscuro' : 'Modo claro';
+}
+function aplicarTema(tema, opts){
+  document.documentElement.setAttribute('data-theme', tema === 'light' ? 'light' : 'dark');
+  try{ localStorage.setItem('piloto5-tema', tema === 'light' ? 'light' : 'dark'); }catch(e){}
+  actualizarIconoTema();
+  // Los gráficos de Chart.js toman su color una sola vez al crearse, así que
+  // hay que volver a dibujarlos con los colores del tema nuevo. renderTotal()
+  // ya es seguro de llamar de nuevo (no vuelve a pedir datos a Supabase).
+  if(!(opts && opts.sinRedibujar) && typeof DATA !== 'undefined' && DATA && DATA.total && Object.keys(DATA.total).length){
+    try{ renderTotal(); }catch(e){}
+  }
+}
+function inicializarSelectorTema(){
+  let guardado = 'dark';
+  try{ guardado = localStorage.getItem('piloto5-tema') === 'light' ? 'light' : 'dark'; }catch(e){}
+  aplicarTema(guardado, {sinRedibujar:true});
+  const btn = document.getElementById('theme-toggle-btn');
+  if(btn) btn.addEventListener('click', ()=>{
+    aplicarTema(temaActual() === 'light' ? 'dark' : 'light');
+  });
+}
+inicializarSelectorTema();
+
 // ---------- Vista Total ----------
 let chartVentasGrupo = null;
 let chartMiembros = null;
@@ -1644,8 +1771,8 @@ function renderTotal(){
     options:{
       plugins:{legend:{display:false}, tooltip:{callbacks:{label:c=>fmtMoney(c.raw)}}},
       scales:{
-        y:{ticks:{color:'#8B98A6', callback:v=>'$'+v.toLocaleString()}, grid:{color:'#2A3542'}},
-        x:{ticks:{color:'#EAEFF3'}, grid:{display:false}}
+        y:{ticks:{color:cssVar('--muted'), callback:v=>'$'+v.toLocaleString()}, grid:{color:cssVar('--line')}},
+        x:{ticks:{color:cssVar('--text')}, grid:{display:false}}
       }
     }
   });
@@ -1657,7 +1784,7 @@ function renderTotal(){
     {name:'Programas vendidos', value:t.programas_vendidos},
   ];
   const max = steps[0].value || 1;
-  const colors = ['#E7A94C','#4FB6A8','#8B93F2'];
+  const colors = [cssVar('--amber'), cssVar('--teal'), cssVar('--violet')];
   document.getElementById('funnel').innerHTML = steps.map((s,i)=>`
     <div class="funnel-step">
       <div class="name">${s.name}</div>
@@ -1674,15 +1801,15 @@ function renderTotal(){
     data:{
       labels: GROUP_ORDER,
       datasets:[
-        {label:'Inicio de semana', data:GROUP_ORDER.map(g=>(DATA.grupos[g]||{}).miembros_inicio||0), backgroundColor:'#2A3542', borderRadius:5, maxBarThickness:34},
-        {label:'Cierre de semana', data:GROUP_ORDER.map(g=>(DATA.grupos[g]||{}).miembros_final||0), backgroundColor:'#4FB6A8', borderRadius:5, maxBarThickness:34}
+        {label:'Inicio de semana', data:GROUP_ORDER.map(g=>(DATA.grupos[g]||{}).miembros_inicio||0), backgroundColor:cssVar('--line'), borderRadius:5, maxBarThickness:34},
+        {label:'Cierre de semana', data:GROUP_ORDER.map(g=>(DATA.grupos[g]||{}).miembros_final||0), backgroundColor:cssVar('--teal'), borderRadius:5, maxBarThickness:34}
       ]
     },
     options:{
-      plugins:{legend:{labels:{color:'#EAEFF3'}}},
+      plugins:{legend:{labels:{color:cssVar('--text')}}},
       scales:{
-        y:{ticks:{color:'#8B98A6'}, grid:{color:'#2A3542'}},
-        x:{ticks:{color:'#EAEFF3'}, grid:{display:false}}
+        y:{ticks:{color:cssVar('--muted')}, grid:{color:cssVar('--line')}},
+        x:{ticks:{color:cssVar('--text')}, grid:{display:false}}
       }
     }
   });
