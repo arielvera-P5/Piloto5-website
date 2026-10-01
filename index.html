@@ -700,6 +700,8 @@
   .agent-detail .agroup{color:var(--muted); font-size:13px; margin-bottom:18px;}
   .agent-metrics{display:grid; grid-template-columns:repeat(4,1fr); gap:14px;}
   @media (max-width:760px){ .agent-metrics{grid-template-columns:repeat(2,1fr);} }
+  .agent-metrics .value.pos{color:var(--teal);}
+  .agent-metrics .value.neg{color:var(--coral);}
   .agent-metrics .m{background:var(--panel-alt); border-radius:8px; padding:12px 14px;}
   .agent-metrics .m .label{font-size:11.5px; color:var(--muted); margin-bottom:4px;}
   .agent-metrics .m .value{font-size:17px; font-weight:600;}
@@ -752,6 +754,14 @@
     font-family:inherit;
   }
   .luna-input-row input:focus{outline:1px solid var(--amber);}
+
+  .ingreso-layout{display:flex; gap:20px; align-items:flex-start; flex-wrap:wrap;}
+  .ingreso-main-panel{flex:1 1 380px; min-width:320px;}
+  .ingreso-admin-panel{flex:0 0 260px; min-width:240px;}
+  @media (max-width:700px){ .ingreso-admin-panel{flex:1 1 100%;} }
+  .ingreso-admin-panel .ingreso-row{grid-template-columns:1fr 84px;}
+  .ingreso-admin-panel .ingreso-row label{min-width:0;}
+  .ingreso-admin-panel .ingreso-row input{padding:9px 8px; text-align:center;}
 
   .ingreso-list{display:flex; flex-direction:column;}
   .ingreso-row{
@@ -1248,10 +1258,21 @@
       </div>
 
       <div class="subview" id="subview-ingreso">
-        <div class="panel">
-          <h3 id="ingreso-agent-name">Selecciona un agente</h3>
-          <form id="ingreso-form" class="ingreso-list"></form>
-          <div class="ingreso-status" id="ingreso-status"></div>
+        <div class="ingreso-layout">
+          <div class="panel ingreso-main-panel">
+            <h3 id="ingreso-agent-name">Selecciona un agente</h3>
+            <form id="ingreso-form" class="ingreso-list"></form>
+            <div class="ingreso-status" id="ingreso-status"></div>
+          </div>
+          <div class="panel ingreso-admin-panel" id="ingreso-admin-panel" style="display:none;">
+            <h3>Miembros activos Admin</h3>
+            <div class="ingreso-row">
+              <label for="ingreso-miembros-admin">Miembros activos Admin</label>
+              <input type="number" id="ingreso-miembros-admin" class="no-spin" step="1" value="0">
+            </div>
+            <div class="form-actions"><button type="button" class="btn-primary" id="ingreso-miembros-admin-guardar">Guardar</button></div>
+            <div class="ingreso-status" id="ingreso-miembros-admin-status"></div>
+          </div>
         </div>
       </div>
     </section>
@@ -1292,8 +1313,9 @@
         <button type="button" class="rpt-subtab-btn" data-hoja="ppvendidos">PP vendidos</button>
         <button type="button" class="rpt-subtab-btn" data-hoja="ppiniciados">PP Iniciados</button>
         <button type="button" class="rpt-subtab-btn" data-hoja="citas">Citas Confirmadas y Totales</button>
-        <button type="button" class="rpt-subtab-btn" data-hoja="miembros">Miembros Activos</button>
+        <button type="button" class="rpt-subtab-btn" data-hoja="miembrosadmin">Miembros Activos Admin</button>
         <button type="button" class="rpt-subtab-btn" data-hoja="mensajes">Mensajes Enviados</button>
+        <button type="button" class="rpt-subtab-btn" data-hoja="miembros">Miembros Activos CMC</button>
       </div>
 
       <div class="reporte-tabla-wrap" id="reporte-visual-contenido">
@@ -2017,6 +2039,26 @@ async function eliminarVsoFila(id){
   return { error };
 }
 
+// ---------- "Miembros Activos Admin" (dato que solo el Supervisor carga a mano) ----------
+async function fetchMiembrosAdmin(authUserId, fecha){
+  const { data, error } = await sb.from('Miembros Activos Admin').select('*').eq('auth_user_id', authUserId).eq('fecha', fecha).maybeSingle();
+  return { data, error };
+}
+async function fetchMiembrosAdminRango(authUserId, from, to){
+  const { data, error } = await sb.from('Miembros Activos Admin').select('*').eq('auth_user_id', authUserId).gte('fecha', from).lte('fecha', to).order('fecha', {ascending:false});
+  return { data: data||[], error };
+}
+async function guardarMiembrosAdmin(authUserId, fecha, valor, equipo){
+  const { data: existente, error: errBuscar } = await fetchMiembrosAdmin(authUserId, fecha);
+  if(errBuscar) return { error: errBuscar };
+  if(existente){
+    const { error } = await sb.from('Miembros Activos Admin').update({ miembros_activos_admin: valor }).eq('id', existente.id);
+    return { error };
+  }
+  const { error } = await sb.from('Miembros Activos Admin').insert({ auth_user_id: authUserId, fecha, miembros_activos_admin: valor, equipo });
+  return { error };
+}
+
 function escapeHtml(str){
   return String(str).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
 }
@@ -2034,12 +2076,13 @@ async function renderAgentDetail(key){
   const tabla = tablaRegistroParaRol(info.rol);
   const campos = camposRegistroParaRol(info.rol);
 
-  const [regRes, vsoRes] = await Promise.all([
+  const [regRes, vsoRes, adminRes] = await Promise.all([
     fetchRegistroDiarioRango(tabla, info.authUserId, range.from, range.to),
     fetchVsoRango(info.authUserId, range.from, range.to),
+    fetchMiembrosAdminRango(info.authUserId, range.from, range.to),
   ]);
-  if(regRes.error || vsoRes.error){
-    el.innerHTML = `<div class="ingreso-empty">Error de Supabase: ${escapeHtml((regRes.error||vsoRes.error).message)}</div>`;
+  if(regRes.error || vsoRes.error || adminRes.error){
+    el.innerHTML = `<div class="ingreso-empty">Error de Supabase: ${escapeHtml((regRes.error||vsoRes.error||adminRes.error).message)}</div>`;
     return;
   }
 
@@ -2068,6 +2111,34 @@ async function renderAgentDetail(key){
     `<div class="m"><div class="label">${c.label}</div><div class="value">${fmtInt(sumas[c.key])}</div></div>`
   ).join('');
 
+  // Caja "Miembros Ganados/Perdidos": compara "Miembros activos del día" (del
+  // registro diario) contra "Miembros activos Admin" (carga manual del
+  // Supervisor). Solo tiene sentido para roles que manejan
+  // "miembros_activos_dia" (Consultor); para un solo día se comparan los
+  // datos de ese mismo día, y para un rango personalizado se compara el
+  // último día elegido (registro) contra el primer día elegido (Admin).
+  let cajaMiembros = '';
+  if(campos.some(c=>c.key==='miembros_activos_dia')){
+    const filasAdmin = adminRes.data;
+    const filaUltimoDia = filasRegistro.find(f=> f.fecha === range.to);
+    const filaPrimerDiaAdmin = filasAdmin.find(f=> f.fecha === range.from);
+    const miembrosDia = filaUltimoDia ? (Number(filaUltimoDia.miembros_activos_dia)||0) : null;
+    const miembrosAdmin = filaPrimerDiaAdmin ? (Number(filaPrimerDiaAdmin.miembros_activos_admin)||0) : null;
+    if(miembrosDia !== null && miembrosDia !== 0 && miembrosAdmin !== null){
+      const diff = miembrosDia - miembrosAdmin;
+      if(diff !== 0){
+        const esRango = range.from !== range.to;
+        const perdidos = diff < 0;
+        const label = esRango
+          ? (perdidos ? 'Miembros perdidos en la semana' : 'Miembros Ganados en la semana')
+          : (perdidos ? 'Miembros perdidos' : 'Miembros Ganados');
+        const claseColor = perdidos ? 'neg' : 'pos';
+        const texto = diff > 0 ? `+${fmtInt(diff)}` : fmtInt(diff);
+        cajaMiembros = `<div class="m"><div class="label">${label}</div><div class="value ${claseColor}">${texto}</div></div>`;
+      }
+    }
+  }
+
   el.innerHTML = `
     <div class="aname">${escapeHtml(info.nombre)}</div>
     <div class="agroup"><span class="tag">${escapeHtml(info.grupo||'')}</span> <span class="tag">${escapeHtml(info.rol||'')}</span></div>
@@ -2077,6 +2148,7 @@ async function renderAgentDetail(key){
       <div class="m"><div class="label">Promedio VSO</div><div class="value">${promedioVso===null?'—':fmtMoney(promedioVso)}</div></div>
       <div class="m"><div class="label">Efectividad de programas</div><div class="value">${efectividadProgramas===null?'—':efectividadProgramas.toFixed(2)}</div></div>
       ${metricCards}
+      ${cajaMiembros}
     </div>
   `;
 }
@@ -3402,7 +3474,61 @@ async function renderIngresoForm(key){
   document.getElementById('ingreso-orden-sumar').addEventListener('click', ()=> sumarOrden(key));
 
   showIngresoStatus('');
+  await renderIngresoAdminBox(key);
 }
+
+// ---------- Caja "Miembros activos Admin" (solo Supervisor) ----------
+async function renderIngresoAdminBox(key){
+  const panel = document.getElementById('ingreso-admin-panel');
+  if(!panel) return;
+  if(!esSupervisor){ panel.style.display = 'none'; return; }
+  panel.style.display = '';
+
+  const input = document.getElementById('ingreso-miembros-admin');
+  const statusEl = document.getElementById('ingreso-miembros-admin-status');
+  const info = getTargetInfo(key);
+  if(!info || !info.authUserId){
+    if(input) input.value = 0;
+    if(statusEl){ statusEl.textContent = ''; statusEl.classList.remove('err'); }
+    return;
+  }
+
+  const fecha = fechaObjetivoIngreso();
+  if(statusEl){ statusEl.textContent = ''; statusEl.classList.remove('err'); }
+  const { data, error } = await fetchMiembrosAdmin(info.authUserId, fecha);
+  if(error){
+    if(statusEl){ statusEl.textContent = `Error: ${error.message}`; statusEl.classList.add('err'); }
+    if(input) input.value = 0;
+    return;
+  }
+  if(input) input.value = data ? (data.miembros_activos_admin ?? 0) : 0;
+}
+
+async function guardarMiembrosActivosAdminIngreso(key){
+  const input = document.getElementById('ingreso-miembros-admin');
+  const statusEl = document.getElementById('ingreso-miembros-admin-status');
+  const info = getTargetInfo(key);
+  if(!info || !info.authUserId){
+    if(statusEl){ statusEl.textContent = 'Selecciona un agente válido.'; statusEl.classList.add('err'); }
+    return;
+  }
+  const fecha = fechaObjetivoIngreso();
+  const valor = parseFloat(input.value);
+  const valorFinal = isNaN(valor) ? 0 : valor;
+  if(statusEl){ statusEl.textContent = 'Guardando…'; statusEl.classList.remove('err'); }
+  await asegurarSesionFresca();
+  const { error } = await guardarMiembrosAdmin(info.authUserId, fecha, valorFinal, info.grupo);
+  if(error){
+    if(statusEl){ statusEl.textContent = `No se pudo guardar: ${error.message}`; statusEl.classList.add('err'); }
+    return;
+  }
+  if(statusEl){ statusEl.textContent = 'Miembros activos Admin guardado ✓'; statusEl.classList.remove('err'); }
+  anunciarCambioParaTotales('miembros_admin');
+}
+
+document.getElementById('ingreso-miembros-admin-guardar').addEventListener('click', ()=>{
+  guardarMiembrosActivosAdminIngreso(document.getElementById('agent-select').value);
+});
 
 async function sumarOrden(key){
   const info = getTargetInfo(key);
@@ -4209,24 +4335,98 @@ function construirHojaMiembros(wb, roster, registroIdx, fechaDesde, etiquetaSema
   return ws;
 }
 
+// En el Excel descargable, esta hoja REEMPLAZA a "Miembros Activos": usa el
+// dato cargado a mano por el Supervisor (tabla "Miembros Activos Admin" en
+// Supabase) en vez del "Miembros activos del día" que reporta cada agente.
+// Misma estructura/columnas que construirHojaMiembros, solo cambia la fuente
+// de datos (adminIdx en vez de registroIdx).
+function construirHojaMiembrosAdmin(wb, roster, adminIdx, fechaDesde, etiquetaSemana){
+  const ws = wb.addWorksheet('Miembros Activos Admin');
+  ws.views = [{ state:'frozen', ySplit:3, xSplit:1 }];
+
+  ws.mergeCells(1,1,1,12);
+  estiloTitulo(ws.getCell(1,1), `Miembros Activos Admin — ${etiquetaSemana}`);
+  estiloDia(ws.getCell(2,1), '');
+  estiloColumna(ws.getCell(3,1), 'Nombre');
+
+  for(let i=0;i<7;i++) estiloDia(ws.getCell(2,2+i), NOMBRES_DIAS_REPORTE[i]);
+  ws.mergeCells(2,9,2,11);
+  estiloTotalHeader(ws.getCell(2,9), 'Miembros activos Admin');
+  estiloTotalHeader(ws.getCell(2,12), 'Diferencia');
+  ['Inicio de semana','Diferencia del día','Fin de semana'].forEach((h,j)=> estiloColumna(ws.getCell(3,9+j), h));
+  estiloTotalHeader(ws.getCell(3,12), 'Total de la semana');
+  for(let i=0;i<7;i++) estiloColumna(ws.getCell(3,2+i), 'Activos');
+
+  const acc = crearAcumulador();
+  let fila = 4;
+  ORDEN_EQUIPOS_REPORTE.forEach(equipoNombre=>{
+    for(let c=1;c<=12;c++) estiloEquipo(ws.getCell(fila,c));
+    estiloEquipo(ws.getCell(fila,1), nombreEquipoVisible(equipoNombre));
+    fila++;
+
+    (roster[equipoNombre]||[]).forEach((persona,i)=>{
+      const banda = i%2===1;
+      ws.getCell(fila,1).value = persona.nombre;
+      aplicarBanda(ws.getCell(fila,1), banda);
+      const valoresDia = [];
+      for(let i2=0;i2<7;i2++){
+        const fecha = fechaParaDiaIndex(fechaDesde, i2);
+        const admin = adminIdx[persona.auth_user_id+'|'+fecha];
+        const v = admin? Number(admin.miembros_activos_admin)||0 : 0;
+        const c = ws.getCell(fila,2+i2); c.value=v; aplicarBanda(c,banda);
+        acc.sumar(2+i2, v);
+        valoresDia.push(v);
+      }
+      const inicio = valoresDia[0];
+      const final = valoresDia[6];
+      [inicio, final-inicio, final].forEach((v,j)=>{ const c=ws.getCell(fila,9+j); c.value=v; c.font={bold:true}; setFillColor(c,'FFF3D6'); });
+      const dif = ws.getCell(fila,12); dif.value = final-inicio; dif.font={bold:true}; setFillColor(dif,'FFF3D6');
+      fila++;
+    });
+  });
+
+  estiloGeneral(ws.getCell(fila,1), 'TOTAL GENERAL');
+  const totalesDia = [];
+  for(let i=0;i<7;i++){
+    const v = acc.obtener(2+i);
+    estiloGeneral(ws.getCell(fila,2+i), v);
+    totalesDia.push(v);
+  }
+  const gInicio = totalesDia[0], gFinal = totalesDia[6];
+  estiloGeneral(ws.getCell(fila,9), gInicio);
+  estiloGeneral(ws.getCell(fila,10), gFinal-gInicio);
+  estiloGeneral(ws.getCell(fila,11), gFinal);
+  estiloGeneral(ws.getCell(fila,12), gFinal-gInicio);
+  fila++;
+
+  aplicarBordesGrid(ws, fila-1, 12);
+  aplicarFuenteBase(ws, fila-1, 12);
+  autoFitColumns(ws, 8, 20);
+  ws.getColumn(1).width = 26;
+  return ws;
+}
+
 async function generarYDescargarReporte(fechaDesde, fechaHasta, etiquetaSemana){
-  const [roster, regRes, vsoRes] = await Promise.all([
+  const [roster, regRes, vsoRes, adminRes] = await Promise.all([
     obtenerRosterParaReporte(),
     sb.rpc('reporte_semanal_registro', { fecha_desde: fechaDesde, fecha_hasta: fechaHasta }),
     sb.rpc('reporte_semanal_vso', { fecha_desde: fechaDesde, fecha_hasta: fechaHasta }),
+    sb.rpc('reporte_semanal_miembros_admin', { fecha_desde: fechaDesde, fecha_hasta: fechaHasta }),
   ]);
   if(regRes.error) throw new Error('No se pudo traer el registro diario: '+regRes.error.message);
   if(vsoRes.error) throw new Error('No se pudo traer el VSO: '+vsoRes.error.message);
+  if(adminRes.error) throw new Error('No se pudo traer Miembros Activos Admin: '+adminRes.error.message);
 
   const registroIdx = indexarPorPersonaFecha(regRes.data);
   const vsoIdx = indexarPorPersonaFecha(vsoRes.data);
+  const adminIdx = indexarPorPersonaFecha(adminRes.data);
 
   const wb = new ExcelJS.Workbook();
   construirHojaVSO(wb, roster, registroIdx, vsoIdx, fechaDesde, etiquetaSemana);
   construirHojaPPVendidos(wb, roster, registroIdx, fechaDesde, etiquetaSemana);
   construirHojaPPIniciados(wb, roster, registroIdx, fechaDesde, etiquetaSemana);
   construirHojaCitas(wb, roster, registroIdx, fechaDesde, etiquetaSemana);
-  construirHojaMiembros(wb, roster, registroIdx, fechaDesde, etiquetaSemana);
+  construirHojaMiembrosAdmin(wb, roster, adminIdx, fechaDesde, etiquetaSemana);
 
   const buffer = await wb.xlsx.writeBuffer();
   const blob = new Blob([buffer], { type: 'application/octet-stream' });
@@ -4500,6 +4700,52 @@ function construirTablaMiembros(roster, registroIdx, fechaDesde){
   return `<table class="reporte-tabla"><thead><tr class="rt-dias">${theadDias}</tr><tr class="rt-cols">${theadCols}</tr></thead><tbody>${cuerpo}</tbody></table>`;
 }
 
+// "Miembros Activos Admin" es el dato que el Supervisor carga a mano (tabla
+// "Miembros Activos Admin" en Supabase), independiente del "Miembros activos
+// del día" que reporta cada agente — por eso usa su propio índice (adminIdx)
+// en vez de registroIdx. Igual que "Miembros Activos CMC", recorre todos los
+// equipos (ORDEN_EQUIPOS_REPORTE) porque el Supervisor puede cargar este dato
+// para cualquier agente.
+function construirTablaMiembrosAdmin(roster, adminIdx, fechaDesde){
+  const totalCols = 1 + 7 + 4;
+  let theadDias = '<th rowspan="2">Nombre</th>';
+  NOMBRES_DIAS_REPORTE.forEach(d=> theadDias += `<th>${d}</th>`);
+  theadDias += `<th colspan="3" class="rt-total-col">Miembros activos Admin</th><th class="rt-total-col">Diferencia</th>`;
+  let theadCols = '';
+  NOMBRES_DIAS_REPORTE.forEach(()=> theadCols += `<th>Activos</th>`);
+  ['Inicio de semana','Diferencia del día','Fin de semana'].forEach(c=> theadCols += `<th class="rt-total-col">${c}</th>`);
+  theadCols += `<th class="rt-total-col">Total de la semana</th>`;
+
+  const totalesDia = new Array(7).fill(0);
+  let cuerpo = '';
+  ORDEN_EQUIPOS_REPORTE.forEach(equipoNombre=>{
+    cuerpo += rtFilaEquipo(totalCols, equipoNombre);
+    (roster[equipoNombre]||[]).forEach((persona,i)=>{
+      const valoresDia = [];
+      let celdas='';
+      for(let d=0; d<7; d++){
+        const fecha = fechaParaDiaIndex(fechaDesde, d);
+        const admin = adminIdx[persona.auth_user_id+'|'+fecha];
+        const v = admin? Number(admin.miembros_activos_admin)||0 : 0;
+        celdas += `<td>${fmtInt(v)}</td>`;
+        totalesDia[d] += v;
+        valoresDia.push(v);
+      }
+      const inicio = valoresDia[0], final = valoresDia[6];
+      celdas += `<td class="rt-total-col">${fmtInt(inicio)}</td><td class="rt-total-col">${fmtInt(final-inicio)}</td><td class="rt-total-col">${fmtInt(final)}</td><td class="rt-total-col">${fmtInt(final-inicio)}</td>`;
+      cuerpo += `<tr class="${i%2===1?'rt-banda':''}">${rtNombreCelda(persona.nombre)}${celdas}</tr>`;
+    });
+  });
+
+  let celdasG='';
+  totalesDia.forEach(v=> celdasG += `<td>${fmtInt(v)}</td>`);
+  const gInicio = totalesDia[0], gFinal = totalesDia[6];
+  celdasG += `<td>${fmtInt(gInicio)}</td><td>${fmtInt(gFinal-gInicio)}</td><td>${fmtInt(gFinal)}</td><td>${fmtInt(gFinal-gInicio)}</td>`;
+  cuerpo += `<tr class="rt-total-fila"><td>TOTAL GENERAL</td>${celdasG}</tr>`;
+
+  return `<table class="reporte-tabla"><thead><tr class="rt-dias">${theadDias}</tr><tr class="rt-cols">${theadCols}</tr></thead><tbody>${cuerpo}</tbody></table>`;
+}
+
 // "Mensajes Enviados" (columna "videos_enviados" en Supabase) es un dato
 // exclusivo de División 2B, así que esta hoja del reporte solo muestra a los
 // agentes de ese equipo — a diferencia de las demás hojas, no recorre
@@ -4543,7 +4789,7 @@ function construirTablaMensajes(roster, registroIdx, fechaDesde){
 
 // ---------- Controlador de la vista "Visualizar reporte" ----------
 let reporteVisualSemanas = [];
-let reporteVisualEstado = { fechaDesde:null, fechaHasta:null, roster:null, registroIdx:null, vsoIdx:null, cargando:false };
+let reporteVisualEstado = { fechaDesde:null, fechaHasta:null, roster:null, registroIdx:null, vsoIdx:null, adminIdx:null, cargando:false };
 let reporteVisualHojaActiva = 'vso';
 
 function poblarSelectSemanaReporteVisual(){
@@ -4556,13 +4802,15 @@ function poblarSelectSemanaReporteVisual(){
   sel.value = '0';
 }
 
-// opts.tipo: sin definir = carga completa (roster + registro + VSO), usada al
-// abrir la vista o al cambiar de semana. 'vso' o 'registro' = actualización
-// parcial disparada en tiempo real: solo se vuelve a pedir esa mitad de los
-// datos (la que de verdad cambió) y se conserva la otra tal cual estaba, para
-// que la columna "VSO" solo se refresque con Sumar/Eliminar/Modificar orden,
-// y el resto de columnas (EPM, Ll. Entrantes, Ll. Salientes, y las demás
-// hojas) solo con "Guardar Cambios".
+// opts.tipo: sin definir = carga completa (roster + registro + VSO +
+// Miembros Activos Admin), usada al abrir la vista o al cambiar de semana.
+// 'vso' / 'registro' / 'miembros_admin' = actualización parcial disparada en
+// tiempo real: solo se vuelve a pedir esa porción de los datos (la que de
+// verdad cambió) y se conserva el resto tal cual estaba, para que la columna
+// "VSO" solo se refresque con Sumar/Eliminar/Modificar orden, "Miembros
+// Activos Admin" solo con su propio botón "Guardar", y el resto de columnas
+// (EPM, Ll. Entrantes, Ll. Salientes, y las demás hojas) solo con "Guardar
+// Cambios".
 async function cargarDatosReporteVisual(opts){
   opts = opts || {};
   const tipo = opts.tipo;
@@ -4589,6 +4837,10 @@ async function cargarDatosReporteVisual(opts){
         const regRes = await sb.rpc('reporte_semanal_registro', { fecha_desde: semana.from, fecha_hasta: semana.to });
         if(regRes.error) throw new Error('No se pudo traer el registro diario: '+regRes.error.message);
         reporteVisualEstado.registroIdx = indexarPorPersonaFecha(regRes.data);
+      }else if(tipo === 'miembros_admin'){
+        const adminRes = await sb.rpc('reporte_semanal_miembros_admin', { fecha_desde: semana.from, fecha_hasta: semana.to });
+        if(adminRes.error) throw new Error('No se pudo traer Miembros Activos Admin: '+adminRes.error.message);
+        reporteVisualEstado.adminIdx = indexarPorPersonaFecha(adminRes.data);
       }
       if(vistaActiva) renderReporteVisualHoja();
     }catch(err){
@@ -4606,19 +4858,22 @@ async function cargarDatosReporteVisual(opts){
   }
   try{
     await asegurarSesionFresca();
-    const [roster, regRes, vsoRes] = await Promise.all([
+    const [roster, regRes, vsoRes, adminRes] = await Promise.all([
       obtenerRosterParaReporte(),
       sb.rpc('reporte_semanal_registro', { fecha_desde: semana.from, fecha_hasta: semana.to }),
       sb.rpc('reporte_semanal_vso', { fecha_desde: semana.from, fecha_hasta: semana.to }),
+      sb.rpc('reporte_semanal_miembros_admin', { fecha_desde: semana.from, fecha_hasta: semana.to }),
     ]);
     if(regRes.error) throw new Error('No se pudo traer el registro diario: '+regRes.error.message);
     if(vsoRes.error) throw new Error('No se pudo traer el VSO: '+vsoRes.error.message);
+    if(adminRes.error) throw new Error('No se pudo traer Miembros Activos Admin: '+adminRes.error.message);
     reporteVisualEstado = {
       fechaDesde: semana.from,
       fechaHasta: semana.to,
       roster,
       registroIdx: indexarPorPersonaFecha(regRes.data),
       vsoIdx: indexarPorPersonaFecha(vsoRes.data),
+      adminIdx: indexarPorPersonaFecha(adminRes.data),
       cargando: false,
     };
     if(vistaActiva) renderReporteVisualHoja();
@@ -4631,14 +4886,15 @@ async function cargarDatosReporteVisual(opts){
 function renderReporteVisualHoja(){
   const contenedor = document.getElementById('reporte-visual-contenido');
   if(!contenedor || !reporteVisualEstado.roster) return;
-  const { roster, registroIdx, vsoIdx, fechaDesde } = reporteVisualEstado;
+  const { roster, registroIdx, vsoIdx, adminIdx, fechaDesde } = reporteVisualEstado;
   let html = '';
   if(reporteVisualHojaActiva === 'vso') html = construirTablaVSO(roster, registroIdx, vsoIdx, fechaDesde);
   else if(reporteVisualHojaActiva === 'ppvendidos') html = construirTablaPPVendidos(roster, registroIdx, fechaDesde);
   else if(reporteVisualHojaActiva === 'ppiniciados') html = construirTablaPPIniciados(roster, registroIdx, fechaDesde);
   else if(reporteVisualHojaActiva === 'citas') html = construirTablaCitas(roster, registroIdx, fechaDesde);
-  else if(reporteVisualHojaActiva === 'miembros') html = construirTablaMiembros(roster, registroIdx, fechaDesde);
+  else if(reporteVisualHojaActiva === 'miembrosadmin') html = construirTablaMiembrosAdmin(roster, adminIdx, fechaDesde);
   else if(reporteVisualHojaActiva === 'mensajes') html = construirTablaMensajes(roster, registroIdx, fechaDesde);
+  else if(reporteVisualHojaActiva === 'miembros') html = construirTablaMiembros(roster, registroIdx, fechaDesde);
   contenedor.innerHTML = html;
 }
 
